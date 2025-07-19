@@ -15,16 +15,17 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { TriviaQuestion, QuestionCategory, DifficultyLevel } from '../types/Question';
+import { TriviaQuestion, QuestionCategory, DifficultyLevel, GameFilters } from '../types/Question';
 import { getGeminiService } from '../services/GeminiService';
 import { QuestionValidator } from '../utils/QuestionValidator';
 
 interface TriviaGameProps {
-  mode: 'practice' | 'game';
+  mode: 'tutorial' | 'game';
   onExit: () => void;
+  filters?: GameFilters;
 }
 
-export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
+export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit, filters }) => {
   const [questions, setQuestions] = useState<TriviaQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -52,28 +53,42 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
       setError(null);
       
       const geminiService = getGeminiService();
+      let allQuestions: TriviaQuestion[] = [];
       
-      // Generate a mix of questions for variety
-      const questionPromises = [
-        geminiService.generateQuestions({
-          category: 'legendary_moments',
-          difficulty: 'medium',
-          count: 2,
-        }),
-        geminiService.generateQuestions({
-          category: 'player_stories',
-          difficulty: 'medium',
-          count: 2,
-        }),
-        geminiService.generateQuestions({
-          category: 'records_stats',
+      if (mode === 'tutorial') {
+        // Generate tutorial questions
+        const tutorialQuestions = await geminiService.generateQuestions({
+          category: 'tutorial',
           difficulty: 'easy',
-          count: 1,
-        }),
-      ];
+          count: 10,
+        });
+        allQuestions = tutorialQuestions;
+      } else {
+        // Generate a mix of questions for game mode
+        const questionPromises = [
+          geminiService.generateQuestions({
+            category: 'legendary_moments',
+            difficulty: 'medium',
+            count: 2,
+            filters: filters,
+          }),
+          geminiService.generateQuestions({
+            category: 'player_stories',
+            difficulty: 'medium',
+            count: 2,
+            filters: filters,
+          }),
+          geminiService.generateQuestions({
+            category: 'records_stats',
+            difficulty: 'easy',
+            count: 1,
+            filters: filters,
+          }),
+        ];
 
-      const questionSets = await Promise.all(questionPromises);
-      const allQuestions = questionSets.flat();
+        const questionSets = await Promise.all(questionPromises);
+        allQuestions = questionSets.flat();
+      }
       
       // Validate questions
       const validQuestions = allQuestions.filter(question => {
@@ -132,14 +147,16 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
     setSelectedAnswer(null);
     setShowExplanation(false);
 
-    // In practice mode, generate more questions as needed
-    if (mode === 'practice' && currentQuestionIndex >= questions.length - 2) {
+    // In tutorial mode, don't generate additional questions (fixed 10 questions)
+    // In game mode, generate more questions as needed
+    if (mode === 'game' && currentQuestionIndex >= questions.length - 2) {
       try {
         const geminiService = getGeminiService();
         const newQuestions = await geminiService.generateQuestions({
           category: getRandomCategory(),
           difficulty: getRandomDifficulty(),
           count: 2,
+          filters: filters,
         });
         
         const validNewQuestions = newQuestions
@@ -258,7 +275,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.modeText}>{mode === 'practice' ? 'Practice Mode' : 'Game Mode'}</Text>
+        <Text style={styles.modeText}>{mode === 'tutorial' ? 'Cricket Tutorial' : 'Game Mode'}</Text>
         <Text style={styles.scoreText}>Score: {score}/{currentQuestionIndex + 1}</Text>
         <Text style={styles.progressText}>
           Question {currentQuestionIndex + 1} of {questions.length}
@@ -267,7 +284,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
 
       {/* Question */}
       <View style={styles.questionContainer}>
-        <Text style={styles.categoryText}>{currentQuestion.category.replace('_', ' ').toUpperCase()}</Text>
+        <Text style={styles.categoryText}>{currentQuestion.category.replace(/_/g, ' ').toUpperCase()}</Text>
         <Text style={styles.questionText}>{currentQuestion.question}</Text>
       </View>
 

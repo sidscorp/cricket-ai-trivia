@@ -15,26 +15,33 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { TriviaQuestion, QuestionCategory, DifficultyLevel } from './src/types/Question';
+import { TriviaQuestion, QuestionCategory, DifficultyLevel, GameFilters, GameMode } from './src/types/Question';
 import { getGeminiService } from './src/services/GeminiService';
 import { QuestionValidator } from './src/utils/QuestionValidator';
 
 interface TriviaGameProps {
-  mode: 'practice' | 'game';
+  mode: 'tutorial' | 'game';
   onExit: () => void;
+  filters?: GameFilters;
+  onUpdateStats?: (correct: boolean, points: number) => void;
+  onUpdateGameStats?: (correct: boolean, points: number, totalQuestions: number) => void;
+  onGameStart?: (totalQuestions: number, gameMode: GameMode) => void;
 }
 
-export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
+export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit, filters, onUpdateStats, onUpdateGameStats, onGameStart }) => {
   const [questions, setQuestions] = useState<TriviaQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [score, setScore] = useState(0);
+  const [wicketsLost, setWicketsLost] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
-  const isLastQuestion = currentQuestionIndex === questions.length - 1;
+  const gameMode = filters?.gameMode || 'fixed';
+  const isLastQuestion = gameMode === 'fixed' ? currentQuestionIndex === questions.length - 1 : wicketsLost >= 5;
+  const isGameOver = isLastQuestion || (gameMode === 'unlimited' && wicketsLost >= 5);
 
   /**
    * Initialize game with AI-generated questions
@@ -52,28 +59,42 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
       setError(null);
       
       const geminiService = getGeminiService();
+      let allQuestions: TriviaQuestion[] = [];
       
-      // Generate a mix of questions for variety
-      const questionPromises = [
-        geminiService.generateQuestions({
-          category: 'legendary_moments',
-          difficulty: 'medium',
-          count: 2,
-        }),
-        geminiService.generateQuestions({
-          category: 'player_stories',
-          difficulty: 'medium',
-          count: 2,
-        }),
-        geminiService.generateQuestions({
-          category: 'records_stats',
+      if (mode === 'tutorial') {
+        // Generate tutorial questions
+        const tutorialQuestions = await geminiService.generateQuestions({
+          category: 'tutorial',
           difficulty: 'easy',
-          count: 1,
-        }),
-      ];
+          count: 10,
+        });
+        allQuestions = tutorialQuestions;
+      } else {
+        // Generate a mix of questions for game mode
+        const questionPromises = [
+          geminiService.generateQuestions({
+            category: 'legendary_moments',
+            difficulty: 'medium',
+            count: 2,
+            filters: filters,
+          }),
+          geminiService.generateQuestions({
+            category: 'player_stories',
+            difficulty: 'medium',
+            count: 2,
+            filters: filters,
+          }),
+          geminiService.generateQuestions({
+            category: 'records_stats',
+            difficulty: 'easy',
+            count: 1,
+            filters: filters,
+          }),
+        ];
 
-      const questionSets = await Promise.all(questionPromises);
-      const allQuestions = questionSets.flat();
+        const questionSets = await Promise.all(questionPromises);
+        allQuestions = questionSets.flat();
+      }
       
       // Validate questions
       const validQuestions = allQuestions.filter(question => {
@@ -93,6 +114,12 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
       const fixedQuestions = validQuestions.map(QuestionValidator.autoFixQuestion);
       
       setQuestions(fixedQuestions);
+      
+      // Initialize game stats when questions are loaded
+      if (onGameStart) {
+        const gameMode = filters?.gameMode || 'fixed';
+        onGameStart(fixedQuestions.length, gameMode);
+      }
     } catch (err) {
       console.error('Error generating questions:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate questions');
@@ -112,8 +139,23 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
     
     setSelectedAnswer(answerIndex);
     
-    if (answerIndex === currentQuestion.correctAnswer) {
+    const isCorrect = answerIndex === currentQuestion.correctAnswer;
+    const points = isCorrect ? 10 : 0; // 10 points for correct answers
+    
+    if (isCorrect) {
       setScore(score + 1);
+    } else {
+      setWicketsLost(wicketsLost + 1);
+    }
+    
+    // Update user stats
+    if (onUpdateStats) {
+      onUpdateStats(isCorrect, points);
+    }
+    
+    // Update game stats
+    if (onUpdateGameStats) {
+      onUpdateGameStats(isCorrect, points, questions.length);
     }
     
     setShowExplanation(true);
@@ -123,7 +165,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
    * Move to next question or end game
    */
   const handleNextQuestion = async () => {
-    if (isLastQuestion) {
+    // Check if game should end due to wickets or questions
+    if (isGameOver || (gameMode === 'unlimited' && wicketsLost >= 5)) {
       handleGameEnd();
       return;
     }
@@ -132,14 +175,16 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
     setSelectedAnswer(null);
     setShowExplanation(false);
 
-    // In practice mode, generate more questions as needed
-    if (mode === 'practice' && currentQuestionIndex >= questions.length - 2) {
+    // In tutorial mode, don't generate additional questions (fixed 10 questions)
+    // In unlimited game mode, generate more questions as needed
+    if (mode === 'game' && gameMode === 'unlimited' && currentQuestionIndex >= questions.length - 2 && wicketsLost < 5) {
       try {
         const geminiService = getGeminiService();
         const newQuestions = await geminiService.generateQuestions({
           category: getRandomCategory(),
           difficulty: getRandomDifficulty(),
           count: 2,
+          filters: filters,
         });
         
         const validNewQuestions = newQuestions
@@ -157,15 +202,22 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
    * Handle game completion
    */
   const handleGameEnd = () => {
-    const percentage = Math.round((score / questions.length) * 100);
-    let message = `Game Complete!\n\nScore: ${score}/${questions.length} (${percentage}%)`;
+    const totalQuestions = gameMode === 'fixed' ? questions.length : currentQuestionIndex + 1;
+    const percentage = Math.round((score / totalQuestions) * 100);
+    
+    let message: string;
+    if (gameMode === 'unlimited' && wicketsLost >= 5) {
+      message = `All Out!\n\nFinal Score: ${score * 10} runs from ${totalQuestions} balls\nWickets Lost: ${wicketsLost}/5\nAccuracy: ${percentage}%`;
+    } else {
+      message = `Innings Complete!\n\nScore: ${score}/${totalQuestions} (${percentage}%)\nTotal Runs: ${score * 10}`;
+    }
     
     if (percentage >= 80) {
-      message += '\n\nExcellent! You know your cricket well!';
+      message += '\n\n🏆 Excellent batting! You know your cricket well!';
     } else if (percentage >= 60) {
-      message += '\n\nGood job! Keep learning about cricket.';
+      message += '\n\n👏 Good innings! Keep learning about cricket.';
     } else {
-      message += '\n\nKeep practicing to improve your cricket knowledge.';
+      message += '\n\n📚 Keep practicing to improve your cricket knowledge.';
     }
 
     Alert.alert('Game Over', message, [
@@ -182,6 +234,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
     setSelectedAnswer(null);
     setShowExplanation(false);
     setScore(0);
+    setWicketsLost(0);
     setQuestions([]);
     generateInitialQuestions();
   };
@@ -205,7 +258,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
       player_stories: '👤',
       records_stats: '📊',
       rules_formats: '📋',
-      cultural_impact: '🌍'
+      cultural_impact: '🌍',
+      tutorial: '🎓'
     };
     return emojis[category];
   };
@@ -219,7 +273,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
       player_stories: 'Player Stories',
       records_stats: 'Records & Stats',
       rules_formats: 'Rules & Formats',
-      cultural_impact: 'Cultural Impact'
+      cultural_impact: 'Cultural Impact',
+      tutorial: 'Cricket Basics'
     };
     return names[category];
   };
@@ -284,14 +339,6 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.modeText}>{mode === 'practice' ? 'Practice Mode' : 'Game Mode'}</Text>
-        <Text style={styles.scoreText}>Score: {score}/{currentQuestionIndex + 1}</Text>
-        <Text style={styles.progressText}>
-          Question {currentQuestionIndex + 1} of {questions.length}
-        </Text>
-      </View>
 
       {/* Question */}
       <View style={styles.questionContainer}>
@@ -356,7 +403,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit }) => {
         {showExplanation && (
           <TouchableOpacity style={styles.nextButton} onPress={handleNextQuestion}>
             <Text style={styles.nextButtonText}>
-              {isLastQuestion ? 'Finish Game' : 'Next Question'}
+              {isGameOver ? 'Finish Innings' : 'Next Ball'}
             </Text>
           </TouchableOpacity>
         )}
@@ -473,8 +520,8 @@ const styles = StyleSheet.create({
   },
   questionText: {
     color: '#fff',
-    fontSize: 20,
-    lineHeight: 30,
+    fontSize: 17,
+    lineHeight: 26,
     fontWeight: '500',
     letterSpacing: 0.3,
   },
@@ -527,8 +574,8 @@ const styles = StyleSheet.create({
   },
   optionText: {
     color: '#fff',
-    fontSize: 17,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 22,
     flex: 1,
     fontWeight: '400',
   },

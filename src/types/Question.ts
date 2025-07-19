@@ -12,7 +12,37 @@ export type QuestionCategory =
   | 'player_stories' 
   | 'records_stats'
   | 'rules_formats'
-  | 'cultural_impact';
+  | 'cultural_impact'
+  | 'tutorial';
+
+export type CricketEra = 
+  | 'golden_age'     // Pre-1950s
+  | 'post_war_boom'  // 1950s-1970s
+  | 'world_cup_era'  // 1970s-1990s
+  | 'modern_era'     // 2000s-2010s
+  | 'contemporary'   // 2010s-2019
+  | 'post_covid'     // 2020-Present
+  | 'all_eras';
+
+export type CricketCountry = 
+  | 'england' | 'australia' | 'india' | 'west_indies' | 'pakistan' | 'south_africa'
+  | 'new_zealand' | 'sri_lanka' | 'bangladesh' | 'afghanistan' | 'ireland'
+  | 'all_countries';
+
+export type QuestionStyle = 
+  | 'facts_only'      // Objective, verifiable answers only
+  | 'facts_opinions'; // Include subjective questions about "turning points", "greatest moments"
+
+export type GameMode = 
+  | 'fixed'           // Fixed number of questions (e.g., 10)
+  | 'unlimited';      // Play until 5 wrong answers (5 wickets)
+
+export interface GameFilters {
+  era: CricketEra;
+  countries: CricketCountry[];
+  questionStyle: QuestionStyle;
+  gameMode: GameMode;
+}
 
 export interface TriviaQuestion {
   id: string;
@@ -31,6 +61,7 @@ export interface QuestionGenerationRequest {
   difficulty: DifficultyLevel;
   count?: number;
   includeExplanation?: boolean;
+  filters?: GameFilters;
 }
 
 export interface QuestionValidationResult {
@@ -41,10 +72,11 @@ export interface QuestionValidationResult {
 
 export interface GameSession {
   id: string;
-  mode: 'practice' | 'game';
+  mode: 'tutorial' | 'game';
   questions: TriviaQuestion[];
   currentQuestionIndex: number;
   score: number;
   startTime: Date;
   endTime?: Date;
+  filters?: GameFilters;
 }
