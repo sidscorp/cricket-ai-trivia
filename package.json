@@ -1,23 +1,35 @@
 {
   "name": "cricket-trivia",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "cli": "node cli/index.js",
+    "test:generate": "node cli/index.js generate",
+    "test:verify": "node cli/index.js verify",
+    "test:pipeline": "node cli/index.js pipeline",
+    "test:performance": "node cli/index.js performance"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "chalk": "^5.4.1",
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.0",
     "expo": "~53.0.20",
+    "expo-constants": "~17.1.7",
     "expo-status-bar": "~2.2.3",
+    "googleapis": "^153.0.0",
+    "inquirer": "^12.7.0",
+    "ora": "^8.2.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
-    "react-native-web": "^0.20.0",
-    "expo-constants": "~17.1.7"
+    "react-native-web": "^0.20.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
