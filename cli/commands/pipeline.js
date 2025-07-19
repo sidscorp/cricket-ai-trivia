@@ -8,9 +8,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { EnhancedGeminiService } from '../services/enhanced-gemini.js';
-import { GoogleSearchService } from '../services/google-search.js';
+import { GroundedGeminiService } from '../services/grounded-gemini.js';
 import { PerformanceMonitor } from '../utils/performance.js';
+import { URLResolver } from '../utils/url-resolver.js';
 
 export const pipelineCommand = new Command('pipeline')
   .description('Test complete AI question generation pipeline')
@@ -18,8 +18,8 @@ export const pipelineCommand = new Command('pipeline')
   .option('-e, --era <era>', 'Cricket era filter', 'all_eras')
   .option('-c, --country <country>', 'Country filter', 'all_countries')
   .option('-d, --difficulty <difficulty>', 'Difficulty level', 'medium')
-  .option('-t, --threshold <number>', 'Verification confidence threshold', '60')
-  .option('--no-verify', 'Skip web verification step')
+  .option('--resolve', 'Enable URL resolution step (default)', true)
+  .option('--no-resolve', 'Skip URL resolution step')
   .option('--json', 'Output results as JSON')
   .option('--detailed', 'Show detailed step-by-step process')
   .action(async (options) => {
@@ -28,29 +28,27 @@ export const pipelineCommand = new Command('pipeline')
       console.log(chalk.blue('═══════════════════════'));
 
       const count = parseInt(options.count);
-      const threshold = parseInt(options.threshold);
       
       if (count < 1 || count > 10) {
         console.error(chalk.red('❌ Count must be between 1 and 10'));
         process.exit(1);
       }
 
-      const geminiService = new EnhancedGeminiService();
-      const searchService = new GoogleSearchService();
+      const geminiService = new GroundedGeminiService();
       const monitor = new PerformanceMonitor();
+
+      console.log(chalk.cyan(`🚀 Pipeline Type: Grounded (Web-Verified)`));
 
       const results = await runPipeline(
         geminiService,
-        searchService,
         monitor,
         {
           count,
           era: options.era,
           country: options.country,
           difficulty: options.difficulty,
-          threshold,
-          verify: options.verify,
-          detailed: options.detailed
+          detailed: options.detailed,
+          resolveUrls: options.resolve
         }
       );
 
@@ -74,11 +72,11 @@ export const pipelineCommand = new Command('pipeline')
 /**
  * Run the complete pipeline
  */
-async function runPipeline(geminiService, searchService, monitor, options) {
+async function runPipeline(geminiService, monitor, options) {
   monitor.start('Cricket Question Generation Pipeline');
   
   const results = [];
-  const { count, verify, detailed } = options;
+  const { count, detailed } = options;
   
   console.log(chalk.cyan(`\n🚀 Starting pipeline for ${count} question(s)...`));
   
@@ -90,7 +88,6 @@ async function runPipeline(geminiService, searchService, monitor, options) {
     
     const questionResult = await generateSingleQuestion(
       geminiService, 
-      searchService, 
       monitor, 
       options, 
       i + 1
@@ -110,48 +107,43 @@ async function runPipeline(geminiService, searchService, monitor, options) {
     totalTime: metrics.duration,
     avgTimePerQuestion: metrics.duration / count,
     successCount: results.filter(r => r.success).length,
-    verifiedCount: results.filter(r => r.verification?.verified).length
+    verifiedCount: results.filter(r => r.grounding?.hasGrounding).length,
+    urlsResolvedCount: results.filter(r => r.resolvedSources?.length > 0).length
   };
 }
 
 /**
  * Generate a single question through the pipeline
  */
-async function generateSingleQuestion(geminiService, searchService, monitor, options, questionNumber) {
+async function generateSingleQuestion(geminiService, monitor, options, questionNumber) {
   const questionTimer = PerformanceMonitor.timer(`Question ${questionNumber}`);
   
   try {
-    // Step 1: Generate incident
-    monitor.step(`Q${questionNumber}: Generating incident`);
-    const incident = await geminiService.generateIncident({
+    // Generate grounded question with filters
+    monitor.step(`Q${questionNumber}: Generating grounded question`);
+    const question = await geminiService.generateVerifiedQuestion({
       era: options.era,
       country: options.country,
       difficulty: options.difficulty
     });
     
-    // Step 2: Verify incident (if enabled)
-    let verification = null;
-    if (options.verify) {
-      monitor.step(`Q${questionNumber}: Verifying incident`);
-      const searchResults = await searchService.searchCricketIncident(incident.incident);
-      verification = analyzeVerification(searchResults, options.threshold);
+    // Resolve grounding URLs if enabled and available
+    let resolvedSources = null;
+    if (options.resolveUrls && question.grounding && question.grounding.groundingChunks) {
+      monitor.step(`Q${questionNumber}: Resolving source URLs`);
+      resolvedSources = await URLResolver.resolveAllGroundingURLs(question.grounding.groundingChunks);
+    } else if (!options.resolveUrls) {
+      console.log(chalk.gray(`   📝 Q${questionNumber}: Skipping URL resolution (disabled)`));
     }
-    
-    // Step 3: Generate question
-    monitor.step(`Q${questionNumber}: Generating question`);
-    const question = await geminiService.generateVerifiableQuestion({
-      incident: incident,
-      difficulty: options.difficulty
-    });
     
     const duration = questionTimer.end();
     
     return {
       success: true,
       questionNumber,
-      incident,
-      verification,
       question,
+      grounding: question.grounding,
+      resolvedSources,
       duration,
       timestamp: new Date()
     };
@@ -170,22 +162,6 @@ async function generateSingleQuestion(geminiService, searchService, monitor, opt
   }
 }
 
-/**
- * Analyze verification results (simplified version)
- */
-function analyzeVerification(searchResults, threshold) {
-  if (!searchResults.success) {
-    return { verified: false, confidence: 0, reason: 'Search failed' };
-  }
-  
-  const verified = searchResults.confidence >= threshold;
-  return {
-    verified,
-    confidence: searchResults.confidence,
-    reason: verified ? 'Verified by web search' : 'Below confidence threshold',
-    sources: searchResults.items.slice(0, 3)
-  };
-}
 
 /**
  * Display single question summary
@@ -196,14 +172,18 @@ function displayQuestionSummary(result, questionNumber) {
     return;
   }
   
-  const { incident, verification, question, duration } = result;
+  const { question, duration, grounding, resolvedSources } = result;
   
   console.log(`   ✅ Generated (${duration.toFixed(0)}ms)`);
   console.log(`   📝 Topic: ${chalk.cyan(question.topic)}`);
   
-  if (verification) {
-    const verifyIcon = verification.verified ? '✅' : '❌';
-    console.log(`   ${verifyIcon} Verified: ${verification.confidence}%`);
+  if (grounding && grounding.hasGrounding) {
+    console.log(`   🌐 Web-verified: ${chalk.green(grounding.groundingChunks.length)} sources`);
+    if (resolvedSources && resolvedSources.length > 0) {
+      console.log(`   🔗 URLs resolved: ${chalk.blue(resolvedSources.length)}`);
+    }
+  } else {
+    console.log(`   ⚠️  No web grounding detected`);
   }
 }
 
@@ -211,7 +191,7 @@ function displayQuestionSummary(result, questionNumber) {
  * Display complete pipeline results
  */
 function displayPipelineResults(results, detailed) {
-  const { questions, totalTime, avgTimePerQuestion, successCount, verifiedCount } = results;
+  const { questions, totalTime, avgTimePerQuestion, successCount, verifiedCount, urlsResolvedCount } = results;
   
   console.log(chalk.green('\n🎉 Pipeline Complete!'));
   console.log(chalk.blue('\n📊 Summary Results:'));
@@ -221,8 +201,11 @@ function displayPipelineResults(results, detailed) {
   console.log(`   📈 Avg Time/Question: ${chalk.cyan(avgTimePerQuestion.toFixed(0))}ms`);
   console.log(`   ✅ Success Rate: ${chalk.green(successCount)}/${questions.length} (${Math.round(successCount/questions.length*100)}%)`);
   
-  if (questions.some(q => q.verification)) {
-    console.log(`   🔍 Verification Rate: ${chalk.yellow(verifiedCount)}/${successCount} (${Math.round(verifiedCount/successCount*100)}%)`);
+  if (verifiedCount > 0) {
+    console.log(`   🌐 Web-verified: ${chalk.green(verifiedCount)}/${successCount} (${Math.round(verifiedCount/successCount*100)}%)`);
+  }
+  if (urlsResolvedCount > 0) {
+    console.log(`   🔗 URLs resolved: ${chalk.blue(urlsResolvedCount)}/${successCount}`);
   }
   
   // Performance assessment
@@ -253,14 +236,18 @@ function displayPipelineResults(results, detailed) {
         return;
       }
       
-      const { incident, verification, question, duration } = result;
+      const { question, duration, grounding, resolvedSources } = result;
       
       console.log(`\n${index + 1}. ✅ ${chalk.green(question.topic)}`);
       console.log(`   ⏱️  Time: ${duration.toFixed(0)}ms`);
       
-      if (verification) {
-        const verifyColor = verification.verified ? chalk.green : chalk.red;
-        console.log(`   🔍 Verified: ${verifyColor(verification.confidence + '%')}`);
+      if (grounding && grounding.hasGrounding) {
+        console.log(`   🌐 Web-verified: ${chalk.green(grounding.groundingChunks.length + ' sources')}`);
+        if (resolvedSources && resolvedSources.length > 0) {
+          console.log(`   🔗 Source URLs: ${chalk.blue(resolvedSources.map(s => s.domain).join(', '))}`);
+        }
+      } else {
+        console.log(`   ⚠️  No web grounding`);
       }
       
       console.log(`   📝 Question: ${chalk.gray(question.question.substring(0, 80))}...`);
@@ -286,10 +273,10 @@ function displayPipelineResults(results, detailed) {
   }
   
   if (verifiedCount < successCount * 0.7) {
-    console.log(`   🔍 ${chalk.yellow('Low verification rate - consider:')}`);
-    console.log(`      • Using more specific incident prompts`);
-    console.log(`      • Lowering confidence threshold`);
+    console.log(`   🔍 ${chalk.yellow('Low web verification rate - consider:')}`);
+    console.log(`      • Using more specific filter combinations`);
     console.log(`      • Focusing on well-documented cricket events`);
+    console.log(`      • Checking Gemini API grounding permissions`);
   }
 }
 

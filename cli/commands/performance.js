@@ -7,8 +7,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { EnhancedGeminiService } from '../services/enhanced-gemini.js';
+import { GroundedGeminiService } from '../services/grounded-gemini.js';
 import { GoogleSearchService } from '../services/google-search.js';
 import { PerformanceMonitor } from '../utils/performance.js';
+import { URLResolver } from '../utils/url-resolver.js';
 
 export const performanceCommand = new Command('performance')
   .alias('perf')
@@ -17,7 +19,9 @@ export const performanceCommand = new Command('performance')
   .option('-t, --target <ms>', 'Target time in milliseconds', '4000')
   .option('-w, --warmup <number>', 'Warmup iterations', '2')
   .option('-c, --concurrent <number>', 'Concurrent requests (be careful!)', '1')
-  .option('--component <type>', 'Test specific component (gemini|search|pipeline)', 'pipeline')
+  .option('--component <type>', 'Test specific component (gemini|search|pipeline|grounded)', 'pipeline')
+  .option('--legacy', 'Use legacy pipeline for testing')
+  .option('--grounded', 'Use grounded pipeline for testing (default)')
   .option('--json', 'Output results as JSON')
   .action(async (options) => {
     try {
@@ -59,13 +63,17 @@ export const performanceCommand = new Command('performance')
 async function runPerformanceTest(options) {
   const { count, target, warmup, concurrent, component } = options;
   
-  console.log(chalk.cyan(`\n🔥 Testing ${component} component`));
+  // Determine pipeline type
+  const useGrounded = !options.legacy && (options.grounded !== false || component === 'grounded');
+  const pipelineType = useGrounded ? 'grounded' : 'legacy';
+  
+  console.log(chalk.cyan(`\n🔥 Testing ${component} component (${pipelineType.toUpperCase()})`));
   console.log(chalk.gray(`   Warmup: ${warmup} iterations`));
   console.log(chalk.gray(`   Test: ${count} iterations`));
   console.log(chalk.gray(`   Target: ${target}ms`));
   console.log(chalk.gray(`   Concurrency: ${concurrent}`));
 
-  const geminiService = new EnhancedGeminiService();
+  const geminiService = useGrounded ? new GroundedGeminiService() : new EnhancedGeminiService();
   const searchService = new GoogleSearchService();
 
   // Warmup phase
@@ -73,7 +81,7 @@ async function runPerformanceTest(options) {
     console.log(chalk.yellow(`\n🔥 Warming up (${warmup} iterations)...`));
     for (let i = 0; i < warmup; i++) {
       try {
-        await runSingleTest(component, geminiService, searchService);
+        await runSingleTest(component, geminiService, searchService, useGrounded);
         process.stdout.write(chalk.gray('.'));
       } catch (error) {
         process.stdout.write(chalk.red('x'));
@@ -89,7 +97,7 @@ async function runPerformanceTest(options) {
   if (concurrent === 1) {
     // Sequential testing
     for (let i = 0; i < count; i++) {
-      const result = await runSingleTest(component, geminiService, searchService);
+      const result = await runSingleTest(component, geminiService, searchService, useGrounded);
       testResults.push(result);
       process.stdout.write(result.success ? chalk.green('.') : chalk.red('x'));
     }
@@ -99,7 +107,7 @@ async function runPerformanceTest(options) {
     for (let batch = 0; batch < batches; batch++) {
       const batchSize = Math.min(concurrent, count - batch * concurrent);
       const promises = Array(batchSize).fill().map(() => 
-        runSingleTest(component, geminiService, searchService)
+        runSingleTest(component, geminiService, searchService, useGrounded)
       );
       
       const batchResults = await Promise.allSettled(promises);
@@ -123,18 +131,36 @@ async function runPerformanceTest(options) {
 /**
  * Run a single test iteration
  */
-async function runSingleTest(component, geminiService, searchService) {
+async function runSingleTest(component, geminiService, searchService, useGrounded = false) {
   const startTime = process.hrtime.bigint();
   
   try {
     if (component === 'gemini') {
-      await geminiService.generateIncident();
+      if (useGrounded) {
+        await geminiService.generateVerifiedIncident();
+      } else {
+        await geminiService.generateIncident();
+      }
     } else if (component === 'search') {
       await searchService.searchCricketIncident('Kapil Dev catch 1983 World Cup');
+    } else if (component === 'grounded') {
+      const question = await geminiService.generateVerifiedQuestion();
+      if (question.grounding?.groundingChunks) {
+        await URLResolver.resolveAllGroundingURLs(question.grounding.groundingChunks);
+      }
     } else if (component === 'pipeline') {
-      const incident = await geminiService.generateIncident();
-      const verification = await searchService.searchCricketIncident(incident.incident);
-      await geminiService.generateVerifiableQuestion({ incident });
+      if (useGrounded) {
+        // Grounded pipeline: Direct question generation with URL resolution
+        const question = await geminiService.generateVerifiedQuestion();
+        if (question.grounding?.groundingChunks) {
+          await URLResolver.resolveAllGroundingURLs(question.grounding.groundingChunks);
+        }
+      } else {
+        // Legacy pipeline: Incident -> Verification -> Question
+        const incident = await geminiService.generateIncident();
+        const verification = await searchService.searchCricketIncident(incident.incident);
+        await geminiService.generateVerifiableQuestion({ incident });
+      }
     }
     
     const endTime = process.hrtime.bigint();
@@ -179,6 +205,7 @@ function analyzePerformanceResults(results, target, options) {
   
   const performance = {
     component: options.component,
+    pipelineType: options.legacy ? 'legacy' : 'grounded',
     totalTests: results.length,
     successful: successful.length,
     failed: failed.length,
@@ -244,13 +271,13 @@ function displayPerformanceResults(results, target) {
     return;
   }
 
-  const { stats, grade, successRate, component } = results;
+  const { stats, grade, successRate, component, pipelineType } = results;
   
   console.log(chalk.green('\n📊 Performance Test Results'));
   console.log(chalk.blue('══════════════════════════'));
   
   // Component and basic stats
-  console.log(`   🧩 Component: ${chalk.cyan(component)}`);
+  console.log(`   🧩 Component: ${chalk.cyan(component)} (${pipelineType?.toUpperCase() || 'N/A'})`);
   console.log(`   ✅ Success Rate: ${chalk.green(Math.round(successRate * 100))}% (${results.successful}/${results.totalTests})`);
   
   // Performance metrics
@@ -303,10 +330,17 @@ function displayPerformanceResults(results, target) {
   
   if (!results.meetsTarget) {
     console.log(`   ⚡ ${chalk.yellow('Performance optimizations:')}`);
-    console.log(`      • Reduce Gemini model temperature`);
-    console.log(`      • Limit search result count`);
-    console.log(`      • Implement request caching`);
-    console.log(`      • Use faster model variants`);
+    if (results.pipelineType === 'grounded') {
+      console.log(`      • Reduce Gemini model temperature`);
+      console.log(`      • Limit grounding search scope`);
+      console.log(`      • Optimize URL resolution process`);
+      console.log(`      • Use faster model variants`);
+    } else {
+      console.log(`      • Reduce Gemini model temperature`);
+      console.log(`      • Limit search result count`);
+      console.log(`      • Implement request caching`);
+      console.log(`      • Use faster model variants`);
+    }
   }
   
   if (successRate < 0.95) {

@@ -9,6 +9,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { GroundedGeminiService } from '../services/grounded-gemini.js';
 import { PerformanceMonitor } from '../utils/performance.js';
+import { URLResolver } from '../utils/url-resolver.js';
 
 export const groundedCommand = new Command('grounded')
   .description('Test Gemini web search grounding for cricket trivia')
@@ -85,7 +86,7 @@ async function generateGroundedIncident(geminiService, options, monitor, jsonOut
         timestamp: new Date().toISOString()
       }, null, 2));
     } else {
-      displayGroundedIncidentResults(incident, metrics);
+      await displayGroundedIncidentResults(incident, metrics);
     }
 
   } catch (error) {
@@ -116,7 +117,7 @@ async function generateGroundedQuestion(geminiService, options, monitor, jsonOut
         timestamp: new Date().toISOString()
       }, null, 2));
     } else {
-      displayGroundedQuestionResults(question, metrics);
+      await displayGroundedQuestionResults(question, metrics);
     }
 
   } catch (error) {
@@ -184,7 +185,7 @@ async function getInteractiveOptions() {
 /**
  * Display grounded incident results
  */
-function displayGroundedIncidentResults(incident, metrics) {
+async function displayGroundedIncidentResults(incident, metrics) {
   console.log(chalk.green('\n✅ Web-Grounded Incident Generated!'));
   console.log(chalk.blue('\n📖 Verified Cricket Incident:'));
   console.log(chalk.blue('══════════════════════════════'));
@@ -224,13 +225,13 @@ function displayGroundedIncidentResults(incident, metrics) {
   console.log(chalk.white(`\n🎯 Confidence Level: ${getConfidenceColor(incident.confidence)}${incident.confidence}${chalk.reset()}`));
   
   // Display grounding information
-  displayGroundingInfo(incident.grounding);
+  await displayGroundingInfo(incident.grounding);
 }
 
 /**
  * Display grounded question results
  */
-function displayGroundedQuestionResults(question, metrics) {
+async function displayGroundedQuestionResults(question, metrics) {
   console.log(chalk.green('\n✅ Web-Grounded Question Generated!'));
   console.log(chalk.blue('\n❓ Verified Cricket Question:'));
   console.log(chalk.blue('═══════════════════════════════'));
@@ -275,13 +276,13 @@ function displayGroundedQuestionResults(question, metrics) {
   console.log(chalk.white(`\n🎯 Confidence Level: ${getConfidenceColor(question.confidence)}${question.confidence}${chalk.reset()}`));
   
   // Display grounding information
-  displayGroundingInfo(question.grounding);
+  await displayGroundingInfo(question.grounding);
 }
 
 /**
  * Display grounding metadata
  */
-function displayGroundingInfo(grounding) {
+async function displayGroundingInfo(grounding) {
   if (!grounding) return;
 
   console.log(chalk.blue('\n🌐 Web Search Grounding:'));
@@ -304,8 +305,24 @@ function displayGroundingInfo(grounding) {
       grounding.groundingChunks.forEach((chunk, index) => {
         if (chunk.web) {
           console.log(`   ${index + 1}. ${chalk.blue(chunk.web.title || 'Web Source')}`);
+          if (chunk.web.uri) {
+            console.log(`      🔗 ${chalk.gray(chunk.web.uri)}`);
+          }
         }
       });
+    }
+
+    // Resolve actual URLs
+    if (grounding.groundingChunks.length > 0) {
+      const resolvedSources = await URLResolver.resolveAllGroundingURLs(grounding.groundingChunks);
+      
+      if (resolvedSources.length > 0) {
+        console.log(chalk.white('\n✅ Verified Source URLs:'));
+        resolvedSources.forEach((source, index) => {
+          console.log(`   ${index + 1}. ${chalk.blue(source.title)}`);
+          console.log(`      🌐 ${chalk.green(source.actualURL)}`);
+        });
+      }
     }
   } else {
     console.log(chalk.yellow('   ⚠️  No web search grounding detected'));
