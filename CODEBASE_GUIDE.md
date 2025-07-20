@@ -7,7 +7,9 @@ A comprehensive guide to understanding the cricket trivia application architectu
 This is a dual-platform project combining:
 - **React Native Mobile App**: Cross-platform cricket trivia game
 - **CLI Testing Framework**: Advanced AI question generation pipeline testing
-- **AI Services**: Gemini-powered question generation with web verification
+- **AI Services**: Multi-model AI integration for question generation
+  - **V1 Pipeline**: Google Custom Search → Gemini for direct question generation
+  - **V2 Pipeline**: OpenRouter (Perplexity Sonar → Claude/GPT-4) for two-phase generation
 
 ## 🗂️ Directory Structure
 
@@ -140,13 +142,32 @@ The CLI system provides comprehensive testing for the AI question generation pip
 - **Features**: Cricket-focused search, result filtering, confidence scoring
 - **Usage**: Used by verification and grounded commands
 
+#### **`OpenRouterService.js`** 🌐 Multi-Model AI Integration
+- **Purpose**: Unified interface for accessing various AI models via OpenRouter
+- **Key Features**:
+  - **Multi-Model Support**: Perplexity Sonar (search), Claude, GPT-4 (creative)
+  - **Two-Phase Pipeline**: Anecdote generation → Question creation
+  - **Enhanced Randomization**: Timestamp + seed based variations
+  - **Source Attribution**: Maintains citation chain through pipeline
+- **Methods**:
+  - `generateAnecdotes()`: Web-aware anecdote generation with Perplexity
+  - `generateQuestionsFromAnecdotes()`: Creative question generation
+  - `generateEnhancedSearchContext()`: Dynamic search context with randomization
+- **Model Configuration**:
+  - Search Models: perplexity/sonar, perplexity/sonar-pro, perplexity/sonar-reasoning, openai/gpt-4o:online
+  - Creative Models: anthropic/claude-3-sonnet, anthropic/claude-3-opus, openai/gpt-4, openai/gpt-4-turbo
+
 
 ### Utilities (`cli/utils/`)
 
 #### **`config.js`**
 - **Purpose**: Configuration management for CLI tools
 - **Features**: API key handling, environment variable management
-- **Contains**: Gemini API, Google Search API configuration
+- **Contains**: 
+  - Gemini API configuration
+  - Google Search API configuration
+  - OpenRouter API configuration (models, pipeline settings)
+  - V2 pipeline parameters (anecdote count, questions per anecdote)
 
 #### **`performance.js`**
 - **Purpose**: Performance monitoring and analysis utilities

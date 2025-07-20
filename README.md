@@ -4,7 +4,7 @@
   <img src="assets/branding/mascot_cat_with_bat.png" alt="CAT Mascot - Cricket playing cat with bat and gear" width="200"/>
 </div>
 
-An intelligent, AI-powered cricket trivia engine that generates engaging, factual questions through advanced web search integration and multi-layer validation. Built with React Native for cross-platform mobile experience and featuring a sophisticated CLI testing framework.
+An intelligent, AI-powered cricket trivia engine that generates engaging, factual questions through advanced web search integration and multi-layer validation. Built with React Native for cross-platform mobile experience and featuring a sophisticated CLI testing framework with multi-model AI support (Gemini and OpenRouter).
 
 ## About
 
@@ -136,6 +136,7 @@ Seven specialized commands for comprehensive testing:
 - Expo CLI (for mobile development)
 - Google Gemini API key
 - Google Custom Search API key (for CLI features)
+- OpenRouter API key (optional, for V2 pipeline)
 
 ### Installation
 ```bash
