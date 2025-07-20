@@ -157,6 +157,32 @@ The CLI system provides comprehensive testing for the AI question generation pip
   - Search Models: perplexity/sonar, perplexity/sonar-pro, perplexity/sonar-reasoning, openai/gpt-4o:online
   - Creative Models: anthropic/claude-3-sonnet, anthropic/claude-3-opus, openai/gpt-4, openai/gpt-4-turbo
 
+#### **`AnecdoteGenerator.js`** 🎪 Phase 1 - Web-Aware Content Generation
+- **Purpose**: Generate cricket anecdotes using web search capabilities
+- **Key Features**:
+  - **Perplexity Integration**: Uses Sonar models for web-aware content generation
+  - **Enhanced Filtering**: Adds temporal and contextual variations for randomness
+  - **Quality Scoring**: Validates and scores anecdotes based on drama, facts, sources
+  - **Content Optimization**: Extracts drama tags and calculates engagement metrics
+- **Methods**:
+  - `generateAnecdotes()`: Main anecdote generation with validation
+  - `validateAnecdoteCount()`: Ensures count within configured limits
+  - `enhanceAnecdote()`: Adds metadata and quality scoring
+  - `calculateQualityScore()`: Scores based on length, facts, drama, sources
+
+#### **`QuestionGenerator.js`** ✍️ Phase 2 - Creative Question Generation  
+- **Purpose**: Transform anecdotes into engaging trivia questions
+- **Key Features**:
+  - **Fast Model Selection**: Prioritizes Claude Sonnet for speed and cost-effectiveness
+  - **Quality-Based Selection**: Chooses best anecdotes based on quality scores
+  - **Batch Processing**: Handles large anecdote sets efficiently
+  - **Answer Complexity**: Analyzes option variety and question structure
+- **Methods**:
+  - `generateQuestions()`: Main question generation from anecdotes
+  - `selectBestAnecdotes()`: Quality-based anecdote selection
+  - `calculateQuestionQuality()`: Scores questions on structure and engagement
+  - `generateQuestionsInBatches()`: Batch processing for large datasets
+
 
 ### Utilities (`cli/utils/`)
 

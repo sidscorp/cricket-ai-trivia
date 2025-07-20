@@ -117,10 +117,10 @@ export class Config {
           claudeOnline: 'anthropic/claude-3-sonnet:online'
         },
         creative: {
-          default: 'anthropic/claude-3-sonnet',
-          opus: 'anthropic/claude-3-opus',
-          gpt4: 'openai/gpt-4',
-          gpt4Turbo: 'openai/gpt-4-turbo'
+          default: 'anthropic/claude-3-sonnet', // Fast, cost-effective for question generation
+          opus: 'anthropic/claude-3-opus',       // Premium model (overkill for Phase 2)
+          gpt4: 'openai/gpt-4',                  // Good fallback option
+          gpt4Turbo: 'openai/gpt-4-turbo'       // Faster GPT-4 variant
         }
       },
       // V2 pipeline configuration
