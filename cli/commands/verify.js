@@ -8,7 +8,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { GoogleSearchService } from '../services/google-search.js';
-import { EnhancedGeminiService } from '../services/enhanced-gemini.js';
+import { EnhancedGeminiService } from '../services/archived/enhanced-gemini.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 
 export const verifyCommand = new Command('verify')

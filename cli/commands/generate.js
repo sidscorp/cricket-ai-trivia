@@ -7,7 +7,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { EnhancedGeminiService } from '../services/enhanced-gemini.js';
+import { EnhancedGeminiService } from '../services/archived/enhanced-gemini.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 
 export const generateCommand = new Command('generate')

@@ -26,6 +26,37 @@ export class GeminiService {
   }
 
   /**
+   * Build prompt for question generation from provided articles
+   */
+  private buildContextArticlesPrompt(
+    articles: { title: string; snippet: string; link: string }[],
+    count: number
+  ): string {
+    const articleTexts = articles.map(
+      (a, i) => `${i + 1}. TITLE: ${a.title}\nURL: ${a.link}\nSNIPPET: ${a.snippet}`
+    ).join('\n\n');
+
+    return `SYSTEM:
+You are a world-class cricket trivia question writer. Using the following article snippets as reference,
+generate ${count} engaging, entertaining, and informative multiple-choice trivia questions with
+clear story context and factual accuracy. Adhere to best trivia practices: compelling hooks,
+precise options, and concise explanations. Include the source URL for each question.
+
+ARTICLES:
+${articleTexts}
+
+FORMAT:
+Return ONLY a JSON array with ${count} elements, each object:
+[{
+  "question": "...",
+  "options": ["A", "B", "C", "D"],
+  "correctAnswer": 0,
+  "explanation": "...",
+  "source": "..."
+}]
+
+Now generate ${count} cricket trivia questions:`;
+  }
    * Generate cricket trivia questions using Gemini AI
    */
   async generateQuestions(request: QuestionGenerationRequest): Promise<TriviaQuestion[]> {
@@ -50,6 +81,10 @@ export class GeminiService {
     const countryContext = this.getCountryContext(request.filters?.countries);
     const styleContext = this.getQuestionStyleContext(request.filters?.questionStyle);
 
+    // If we have pre-fetched articles, build a context-driven prompt
+    if (request.contextArticles) {
+      return this.buildContextArticlesPrompt(request.contextArticles, count);
+    }
     // Special handling for tutorial mode
     if (request.category === 'tutorial') {
       return this.buildTutorialPrompt(count);

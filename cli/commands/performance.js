@@ -6,8 +6,8 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { EnhancedGeminiService } from '../services/enhanced-gemini.js';
-import { GroundedGeminiService } from '../services/grounded-gemini.js';
+import { EnhancedGeminiService } from '../services/archived/enhanced-gemini.js';
+import { GroundedGeminiService } from '../services/archived/grounded-gemini.js';
 import { GoogleSearchService } from '../services/google-search.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 import { URLResolver } from '../utils/url-resolver.js';

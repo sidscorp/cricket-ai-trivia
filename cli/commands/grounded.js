@@ -7,7 +7,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { GroundedGeminiService } from '../services/grounded-gemini.js';
+import { GroundedGeminiService } from '../services/archived/grounded-gemini.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 import { URLResolver } from '../utils/url-resolver.js';
 

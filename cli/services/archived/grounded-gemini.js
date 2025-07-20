@@ -7,7 +7,7 @@
  */
 
 import chalk from 'chalk';
-import { config } from '../utils/config.js';
+import { config } from '../../utils/config.js';
 
 export class GroundedGeminiService {
   constructor() {

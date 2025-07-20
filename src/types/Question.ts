@@ -62,6 +62,14 @@ export interface QuestionGenerationRequest {
   count?: number;
   includeExplanation?: boolean;
   filters?: GameFilters;
+  /**
+   * If provided, use these article snippets and links as context for question generation
+   */
+  contextArticles?: Array<{
+    title: string;
+    snippet: string;
+    link: string;
+  }>;
 }
 
 export interface QuestionValidationResult {
