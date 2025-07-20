@@ -108,20 +108,30 @@ export class Config {
       baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
       models: {
         search: {
-          default: 'perplexity/sonar',
-          pro: 'perplexity/sonar-pro',
-          reasoning: 'perplexity/sonar-reasoning',
-          reasoningPro: 'perplexity/sonar-reasoning-pro',
-          gpt4Online: 'openai/gpt-4o:online',
-          gpt4MiniOnline: 'openai/gpt-4o-mini:online',
-          claudeOnline: 'anthropic/claude-3-sonnet:online'
+          // Fast models first for Phase 1 speed optimization
+          default: 'perplexity/sonar',                    // Primary: Fast web search
+          fast: 'openai/gpt-4o-mini:online',              // Fallback: Fast but capable
+          pro: 'perplexity/sonar-pro',                    // High-quality option  
+          reasoning: 'perplexity/sonar-reasoning',        // Advanced reasoning
+          reasoningPro: 'perplexity/sonar-reasoning-pro', // Premium reasoning
+          gpt4Online: 'openai/gpt-4o:online',            // GPT-4 with online access
+          claudeOnline: 'anthropic/claude-3-sonnet:online' // Claude with online access
         },
         creative: {
-          default: 'anthropic/claude-3-sonnet', // Fast, cost-effective for question generation
-          opus: 'anthropic/claude-3-opus',       // Premium model (overkill for Phase 2)
-          gpt4: 'openai/gpt-4',                  // Good fallback option
-          gpt4Turbo: 'openai/gpt-4-turbo'       // Faster GPT-4 variant
+          // Speed-optimized order for Phase 2
+          default: 'anthropic/claude-3-sonnet',           // Primary: Fast + high quality
+          fast: 'openai/gpt-4o-mini',                     // Fastest option
+          gpt4: 'openai/gpt-4',                           // Balanced option
+          gpt4Turbo: 'openai/gpt-4-turbo',               // Fast GPT-4 variant
+          opus: 'anthropic/claude-3-opus'                 // Premium (slower but best quality)
         }
+      },
+      // Speed optimization settings
+      performance: {
+        enableParallelProcessing: true,
+        maxConcurrentRequests: 3,
+        timeoutMs: 30000,           // 30s timeout per request
+        retryAttempts: 1            // Minimal retries for speed
       },
       // V2 pipeline configuration
       v2Pipeline: {

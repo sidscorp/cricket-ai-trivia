@@ -45,7 +45,7 @@ export class AnecdoteGenerator {
         filters,
         category,
         count: validatedCount,
-        model: model || this.selectBestSearchModel()
+        model: model ? this.selectBestSearchModel(model) : this.selectBestSearchModel()
       });
 
       // Generate anecdotes using OpenRouter
@@ -85,15 +85,19 @@ export class AnecdoteGenerator {
   /**
    * Select the best search model based on current configuration
    */
-  selectBestSearchModel() {
-    // Prefer Perplexity models for web search capability
+  selectBestSearchModel(modelHint = null) {
     const searchModels = this.config.models.search;
     
-    // Priority order: reasoning > pro > default
-    if (searchModels.perplexityReasoningPro) return searchModels.reasoningPro;
-    if (searchModels.perplexityReasoning) return searchModels.reasoning;
-    if (searchModels.perplexitySonarPro) return searchModels.pro;
+    // Handle model hints/aliases
+    if (modelHint) {
+      if (modelHint === 'fast') return searchModels.fast || searchModels.default;
+      if (modelHint === 'pro') return searchModels.pro;
+      if (modelHint === 'reasoning') return searchModels.reasoning;
+      // If it's a full model ID, return it directly
+      if (modelHint.includes('/')) return modelHint;
+    }
     
+    // Default priority order: default > pro > reasoning
     return searchModels.default;
   }
 

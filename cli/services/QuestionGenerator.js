@@ -16,7 +16,7 @@ export class QuestionGenerator {
   }
 
   /**
-   * Generate trivia questions from cricket anecdotes
+   * Generate trivia questions from cricket anecdotes with streaming optimization
    * @param {Object} options - Generation options
    * @param {Array} options.anecdotes - Array of cricket anecdotes
    * @param {string} options.category - Question category
@@ -47,26 +47,62 @@ export class QuestionGenerator {
       // Select best anecdotes for question generation
       const selectedAnecdotes = this.selectBestAnecdotes(anecdotes, calculatedTarget);
       
-      // Generate questions using OpenRouter
+      // Use parallel processing for speed when we have enough anecdotes
+      if (selectedAnecdotes.length > 3) {
+        console.log(chalk.gray(`   Using parallel question generation for ${selectedAnecdotes.length} anecdotes`));
+        return await this.generateQuestionsInParallel(selectedAnecdotes, category, filters, model);
+      }
+      
+      // Single batch for small sets
       const request = this.buildQuestionRequest({
         anecdotes: selectedAnecdotes,
         category,
         filters,
-        model: model || this.selectBestCreativeModel()
+        model: model ? this.selectBestCreativeModel(model) : this.selectBestCreativeModel()
       });
       
       const questions = await this.openRouter.generateQuestionsFromAnecdotes(request);
-      
-      // Process and validate questions
       const processedQuestions = this.processQuestions(questions, selectedAnecdotes);
       
       console.log(chalk.green(`✅ Generated ${processedQuestions.length} questions`));
-      
       return processedQuestions;
     } catch (error) {
       console.error(chalk.red('❌ Question generation failed:'), error.message);
       throw new Error(`QuestionGenerator failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Generate questions in parallel batches for speed
+   */
+  async generateQuestionsInParallel(anecdotes, category, filters, model) {
+    // Split into batches of 2-3 anecdotes for parallel processing
+    const batchSize = Math.min(3, Math.max(2, Math.ceil(anecdotes.length / 2)));
+    const batches = [];
+    
+    for (let i = 0; i < anecdotes.length; i += batchSize) {
+      batches.push(anecdotes.slice(i, i + batchSize));
+    }
+    
+    console.log(chalk.gray(`   Processing ${batches.length} parallel batches of ${batchSize} anecdotes`));
+    
+    const batchPromises = batches.map(async (batch, index) => {
+      const request = this.buildQuestionRequest({
+        anecdotes: batch,
+        category,
+        filters,
+        model: model ? this.selectBestCreativeModel(model) : this.selectBestCreativeModel()
+      });
+      
+      const questions = await this.openRouter.generateQuestionsFromAnecdotes(request);
+      return this.processQuestions(questions, batch);
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
+    const allQuestions = batchResults.flat();
+    
+    console.log(chalk.green(`✅ Generated ${allQuestions.length} questions via parallel processing`));
+    return allQuestions;
   }
 
   /**
@@ -109,8 +145,17 @@ export class QuestionGenerator {
    * Select the best creative model for question generation
    * Prioritizes speed over maximum capability since we have pre-sourced content
    */
-  selectBestCreativeModel() {
+  selectBestCreativeModel(modelHint = null) {
     const creativeModels = this.config.models.creative;
+    
+    // Handle model hints/aliases
+    if (modelHint) {
+      if (modelHint === 'fast') return creativeModels.fast || creativeModels.default;
+      if (modelHint === 'opus') return creativeModels.opus;
+      if (modelHint === 'gpt4') return creativeModels.gpt4;
+      // If it's a full model ID, return it directly
+      if (modelHint.includes('/')) return modelHint;
+    }
     
     // Priority order for question generation: default (sonnet) > gpt4 > gpt4Turbo > opus
     // Sonnet 3.5 is fast and excellent for this structured task

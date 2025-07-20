@@ -44,7 +44,7 @@ class OpenRouterService {
   }
 
   /**
-   * Generate cricket anecdotes using search-capable model
+   * Generate cricket anecdotes using search-capable model with parallel processing
    * @param {Object} request - Request parameters
    * @param {Object} request.filters - Search filters (era, countries, etc.)
    * @param {string} request.category - Question category
@@ -53,23 +53,49 @@ class OpenRouterService {
    */
   async generateAnecdotes(request) {
     try {
-      const prompt = this.buildAnecdotePrompt(request);
+      const { count = 10 } = request;
       const model = request.model || this.defaultSearchModel;
       
-      console.log(chalk.blue(`🔍 Using ${model} for anecdote generation...`));
+      console.log(chalk.blue(`🔍 Using ${model} for parallel anecdote generation...`));
       
-      const response = await this.callOpenRouterAPI({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 4000
-      });
+      // For speed: generate anecdotes in parallel batches of 3-4
+      const batchSize = Math.min(4, Math.max(2, Math.ceil(count / 3)));
+      const batches = Math.ceil(count / batchSize);
       
-      return this.parseAnecdoteResponse(response);
+      console.log(chalk.gray(`   Generating ${count} anecdotes in ${batches} parallel batches of ${batchSize}`));
+      
+      const batchPromises = [];
+      for (let i = 0; i < batches; i++) {
+        const batchCount = Math.min(batchSize, count - (i * batchSize));
+        const batchRequest = { ...request, count: batchCount };
+        batchPromises.push(this.generateAnecdoteBatch(batchRequest, model));
+      }
+      
+      const batchResults = await Promise.all(batchPromises);
+      const allAnecdotes = batchResults.flat();
+      
+      console.log(chalk.green(`✅ Generated ${allAnecdotes.length} anecdotes via parallel processing`));
+      return allAnecdotes;
     } catch (error) {
       console.error('Error generating anecdotes:', error);
       throw new Error('Failed to generate anecdotes via OpenRouter');
     }
+  }
+
+  /**
+   * Generate a single batch of anecdotes
+   */
+  async generateAnecdoteBatch(request, model) {
+    const prompt = this.buildOptimizedAnecdotePrompt(request);
+    
+    const response = await this.callOpenRouterAPI({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 2000  // Reduced for faster response
+    });
+    
+    return this.parseAnecdoteResponse(response);
   }
 
   /**
@@ -102,83 +128,56 @@ class OpenRouterService {
   }
 
   /**
-   * Build prompt for anecdote generation
+   * Build optimized prompt for faster anecdote generation
    */
-  buildAnecdotePrompt(request) {
+  buildOptimizedAnecdotePrompt(request) {
     const { filters, category, count = 10 } = request;
     
-    // Enhanced search terms with randomization
+    // Generate focused search context
     const searchContext = this.generateEnhancedSearchContext(filters, category);
     
-    return `You are a cricket historian with access to web search. Generate ${count} compelling cricket anecdotes based on the following criteria:
+    return `Generate ${count} cricket anecdotes with web search. Context: ${searchContext}
 
-SEARCH CONTEXT:
-${searchContext}
+Each anecdote needs:
+- Engaging title
+- 150-250 word dramatic story with specific details
+- 3-5 key facts for trivia questions
+- Source citations
+- Unique incident (no duplicates)
 
-REQUIREMENTS:
-1. Each anecdote should be a dramatic, engaging story (200-300 words)
-2. Focus on specific incidents, matches, or moments
-3. Include verifiable facts and specific details
-4. Cite sources with actual URLs when possible
-5. Ensure variety - no duplicate stories or similar themes
+JSON format:
+[{"title":"Title","story":"Story with drama and facts","key_facts":["Fact1","Fact2","Fact3"],"sources":["URL1"],"tags":["drama","historic"]}]
 
-FORMAT:
-Return a JSON array of anecdotes:
-[
-  {
-    "title": "Brief, engaging title",
-    "story": "Full dramatic narrative with specific details",
-    "key_facts": ["Fact 1", "Fact 2", "Fact 3"],
-    "sources": ["URL1", "URL2"],
-    "tags": ["tag1", "tag2"]
-  }
-]
-
-Generate ${count} unique cricket anecdotes now:`;
+Generate ${count} diverse cricket anecdotes:`;
   }
 
   /**
-   * Build prompt for question generation from anecdotes
+   * Build prompt for anecdote generation (legacy method for compatibility)
+   */
+  buildAnecdotePrompt(request) {
+    return this.buildOptimizedAnecdotePrompt(request);
+  }
+
+  /**
+   * Build optimized prompt for faster question generation
    */
   buildQuestionPrompt(request) {
     const { anecdotes, category, filters } = request;
     
+    // Streamlined anecdote presentation with essential info only
     const anecdoteText = anecdotes.map((a, i) => 
-      `${i + 1}. ${a.title}\n${a.story}\nKey Facts: ${a.key_facts.join(', ')}\nSources: ${a.sources.join(', ')}`
+      `${i + 1}. ${a.title}\n${a.story}\nFacts: ${a.key_facts.slice(0, 3).join(', ')}`
     ).join('\n\n');
     
-    return `You are a master trivia question creator. Transform these cricket anecdotes into engaging trivia questions.
+    return `Create cricket trivia from these anecdotes. Generate 1-2 questions per anecdote focusing on dramatic moments and verifiable facts.
 
 ANECDOTES:
 ${anecdoteText}
 
-REQUIREMENTS:
-1. Generate 1-2 questions per anecdote (focus on the most dramatic/interesting aspects)
-2. Questions should test knowledge of the specific incident
-3. Include 4 plausible options
-4. Maintain source attribution from the anecdote
-5. Focus on factual elements that can be verified
+JSON format:
+[{"question":"Dramatic context + specific question?","options":["A","B","C","D"],"correctAnswer":0,"explanation":"Brief context","source":"URL","anecdoteRef":"Title"}]
 
-STYLE GUIDELINES:
-- Start with dramatic context
-- Build tension in the question
-- Test specific knowledge, not general understanding
-- Make wrong answers plausible but clearly distinct
-
-FORMAT:
-Return a JSON array:
-[
-  {
-    "question": "Dramatic question text",
-    "options": ["A", "B", "C", "D"],
-    "correctAnswer": 0,
-    "explanation": "Brief explanation with story context",
-    "source": "Original source URL",
-    "anecdoteRef": "Title of source anecdote"
-  }
-]
-
-Generate trivia questions now:`;
+Requirements: 4 plausible options, test specific knowledge, maintain source attribution. Generate engaging trivia now:`;
   }
 
   /**
@@ -221,7 +220,7 @@ Generate trivia questions now:`;
   }
 
   /**
-   * Parse anecdote response from API
+   * Parse anecdote response from API with robust JSON extraction
    */
   parseAnecdoteResponse(response) {
     try {
@@ -230,26 +229,76 @@ Generate trivia questions now:`;
         throw new Error('No content in API response');
       }
       
-      // Extract JSON from response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
+      console.log(chalk.gray('🔍 Debug - Raw anecdote response:'));
+      console.log(chalk.gray(content.substring(0, 300) + '...'));
+      
+      // Try multiple JSON extraction strategies (same as questions)
+      let anecdotes = null;
+      
+      // Strategy 1: Look for JSON array with brackets
+      let jsonMatch = content.match(/\[[\s\S]*?\]/);
+      if (jsonMatch) {
+        try {
+          anecdotes = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          console.log(chalk.yellow('⚠️ Anecdote Strategy 1 failed, trying strategy 2...'));
+        }
       }
       
-      const anecdotes = JSON.parse(jsonMatch[0]);
+      // Strategy 2: Look for JSON code block
+      if (!anecdotes) {
+        const codeBlockMatch = content.match(/```json\s*(\[[\s\S]*?\])\s*```/);
+        if (codeBlockMatch) {
+          try {
+            anecdotes = JSON.parse(codeBlockMatch[1]);
+          } catch (e) {
+            console.log(chalk.yellow('⚠️ Anecdote Strategy 2 failed, trying strategy 3...'));
+          }
+        }
+      }
+      
+      // Strategy 3: Clean and extract JSON more aggressively
+      if (!anecdotes) {
+        const startIndex = content.indexOf('[');
+        const endIndex = content.lastIndexOf(']');
+        
+        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+          const jsonStr = content.substring(startIndex, endIndex + 1);
+          try {
+            anecdotes = JSON.parse(jsonStr);
+          } catch (e) {
+            console.error(chalk.red('❌ All anecdote parsing strategies failed'));
+            throw new Error(`No valid JSON found in anecdote response. Content preview: ${content.substring(0, 200)}...`);
+          }
+        }
+      }
+      
+      if (!Array.isArray(anecdotes)) {
+        throw new Error('Parsed anecdote content is not an array');
+      }
+      
+      console.log(chalk.green(`✅ Successfully parsed ${anecdotes.length} anecdotes from response`));
       
       // Validate anecdote structure
-      return anecdotes.filter(a => 
-        a.title && a.story && a.key_facts && Array.isArray(a.sources)
-      );
+      const validAnecdotes = anecdotes.filter(a => {
+        const isValid = a.title && a.story && a.key_facts;
+        if (!isValid) {
+          console.log(chalk.yellow(`⚠️ Filtering out invalid anecdote: ${JSON.stringify(a).substring(0, 100)}...`));
+        }
+        return isValid;
+      });
+      
+      console.log(chalk.green(`✅ Returning ${validAnecdotes.length} valid anecdotes`));
+      return validAnecdotes;
+      
     } catch (error) {
-      console.error('Error parsing anecdote response:', error);
-      throw new Error('Failed to parse anecdote response');
+      console.error(chalk.red('Error parsing anecdote response:'), error.message);
+      throw new Error(`Failed to parse anecdote response: ${error.message}`);
     }
   }
 
   /**
-   * Parse question response from API
+   * Parse question response from API with robust JSON extraction
    */
   parseQuestionResponse(response) {
     try {
@@ -258,31 +307,103 @@ Generate trivia questions now:`;
         throw new Error('No content in API response');
       }
       
-      // Extract JSON from response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
+      console.log(chalk.gray('🔍 Debug - Raw response content:'));
+      console.log(chalk.gray(content.substring(0, 500) + '...'));
+      
+      // Try multiple JSON extraction strategies
+      let questions = null;
+      
+      // Strategy 1: Look for JSON array with brackets
+      let jsonMatch = content.match(/\[[\s\S]*?\]/);
+      if (jsonMatch) {
+        try {
+          questions = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          console.log(chalk.yellow('⚠️ Strategy 1 failed, trying strategy 2...'));
+        }
       }
       
-      const questions = JSON.parse(jsonMatch[0]);
+      // Strategy 2: Look for JSON code block
+      if (!questions) {
+        const codeBlockMatch = content.match(/```json\s*(\[[\s\S]*?\])\s*```/);
+        if (codeBlockMatch) {
+          try {
+            questions = JSON.parse(codeBlockMatch[1]);
+          } catch (e) {
+            console.log(chalk.yellow('⚠️ Strategy 2 failed, trying strategy 3...'));
+          }
+        }
+      }
+      
+      // Strategy 3: Clean and extract JSON more aggressively
+      if (!questions) {
+        // Remove everything before first [ and after last ]
+        const startIndex = content.indexOf('[');
+        const endIndex = content.lastIndexOf(']');
+        
+        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+          const jsonStr = content.substring(startIndex, endIndex + 1);
+          try {
+            questions = JSON.parse(jsonStr);
+          } catch (e) {
+            console.log(chalk.yellow('⚠️ Strategy 3 failed, trying strategy 4...'));
+          }
+        }
+      }
+      
+      // Strategy 4: Line-by-line parsing for malformed JSON
+      if (!questions) {
+        const lines = content.split('\n');
+        const jsonLines = [];
+        let inJson = false;
+        
+        for (const line of lines) {
+          if (line.trim().startsWith('[')) inJson = true;
+          if (inJson) jsonLines.push(line);
+          if (line.trim().endsWith(']')) break;
+        }
+        
+        try {
+          questions = JSON.parse(jsonLines.join('\n'));
+        } catch (e) {
+          console.error(chalk.red('❌ All JSON parsing strategies failed'));
+          throw new Error(`No valid JSON found in response. Content preview: ${content.substring(0, 200)}...`);
+        }
+      }
+      
+      if (!Array.isArray(questions)) {
+        throw new Error('Parsed content is not an array');
+      }
+      
+      console.log(chalk.green(`✅ Successfully parsed ${questions.length} questions from response`));
       
       // Validate question structure and add metadata
-      return questions
-        .filter(q => 
-          q.question && 
-          Array.isArray(q.options) && 
-          q.options.length === 4 &&
-          typeof q.correctAnswer === 'number'
-        )
+      const validQuestions = questions
+        .filter(q => {
+          const isValid = q.question && 
+            Array.isArray(q.options) && 
+            q.options.length === 4 &&
+            typeof q.correctAnswer === 'number';
+          
+          if (!isValid) {
+            console.log(chalk.yellow(`⚠️ Filtering out invalid question: ${JSON.stringify(q).substring(0, 100)}...`));
+          }
+          
+          return isValid;
+        })
         .map(q => ({
           ...q,
           id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           generatedAt: new Date(),
           model: 'openrouter'
         }));
+      
+      console.log(chalk.green(`✅ Returning ${validQuestions.length} valid questions`));
+      return validQuestions;
+      
     } catch (error) {
-      console.error('Error parsing question response:', error);
-      throw new Error('Failed to parse question response');
+      console.error(chalk.red('Error parsing question response:'), error.message);
+      throw new Error(`Failed to parse question response: ${error.message}`);
     }
   }
 
