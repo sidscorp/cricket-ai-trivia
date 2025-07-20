@@ -30,11 +30,12 @@ export class Config {
     }
 
     // Check for Google Search keys (optional - warn if missing)
-    const hasGoogleSearch = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY && process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID;
+    const hasGoogleSearch = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY &&
+      (process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID || process.env.GOOGLE_CUSTOM_SEARCH_CX);
     if (!hasGoogleSearch) {
       console.warn(chalk.yellow('\n⚠️  Google Custom Search not configured:'));
       console.warn(chalk.gray('   • GOOGLE_CUSTOM_SEARCH_API_KEY (missing)'));
-      console.warn(chalk.gray('   • GOOGLE_CUSTOM_SEARCH_ENGINE_ID (missing)'));
+      console.warn(chalk.gray('   • GOOGLE_CUSTOM_SEARCH_CX (or GOOGLE_CUSTOM_SEARCH_ENGINE_ID) (missing)'));
       console.warn(chalk.cyan('   📝 Web verification will be skipped. Generation and basic testing will still work.\n'));
     }
   }
@@ -55,7 +56,7 @@ export class Config {
   get googleSearch() {
     return {
       apiKey: process.env.GOOGLE_CUSTOM_SEARCH_API_KEY,
-      searchEngineId: process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID,
+      searchEngineId: process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID || process.env.GOOGLE_CUSTOM_SEARCH_CX,
       maxResults: 5
     };
   }

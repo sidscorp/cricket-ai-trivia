@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import 'ts-node/register';
 
 /**
  * Cricket Trivia CLI Test Tool
@@ -14,6 +15,8 @@ import { verifyCommand } from './commands/verify.js';
 import { pipelineCommand } from './commands/pipeline.js';
 import { performanceCommand } from './commands/performance.js';
 import { groundedCommand } from './commands/grounded.js';
+import { searchCommand } from './commands/search.js';
+import { searchGenerateCommand } from './commands/search-generate.js';
 
 const program = new Command();
 
@@ -39,6 +42,8 @@ program.addCommand(verifyCommand);
 program.addCommand(pipelineCommand);
 program.addCommand(performanceCommand);
 program.addCommand(groundedCommand);
+program.addCommand(searchCommand);
+program.addCommand(searchGenerateCommand);
 
 // Help command override
 program.helpCommand('help [command]');
