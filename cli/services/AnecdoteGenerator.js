@@ -8,11 +8,13 @@
 import chalk from 'chalk';
 import { getOpenRouterService } from './OpenRouterService.js';
 import { config } from '../utils/config.js';
+import { getEnhancedFilterSystem } from '../utils/enhanced-filters.js';
 
 export class AnecdoteGenerator {
   constructor() {
     this.openRouter = getOpenRouterService();
     this.config = config.openRouter;
+    this.filterSystem = getEnhancedFilterSystem();
   }
 
   /**
@@ -96,11 +98,11 @@ export class AnecdoteGenerator {
   }
 
   /**
-   * Build enhanced anecdote request with randomization
+   * Build enhanced anecdote request with advanced randomization
    */
   buildAnecdoteRequest({ filters, category, count, model }) {
     return {
-      filters: this.enhanceFilters(filters),
+      filters: this.enhanceFilters(filters, category),
       category,
       count,
       model,
@@ -110,28 +112,11 @@ export class AnecdoteGenerator {
   }
 
   /**
-   * Enhance filters with additional randomization elements
+   * Enhance filters using the advanced filter system
    */
-  enhanceFilters(filters) {
-    const enhanced = { ...filters };
-    
-    // Add temporal variations
-    const timeVariations = [
-      'morning_session', 'afternoon_session', 'evening_session',
-      'monsoon_affected', 'winter_series', 'summer_heat'
-    ];
-    
-    // Add match context variations
-    const contextVariations = [
-      'series_decider', 'debut_match', 'farewell_game',
-      'rivalry_intense', 'underdog_story', 'record_attempt'
-    ];
-    
-    // Randomly select variations
-    enhanced.timeContext = timeVariations[Math.floor(Math.random() * timeVariations.length)];
-    enhanced.matchContext = contextVariations[Math.floor(Math.random() * contextVariations.length)];
-    
-    return enhanced;
+  enhanceFilters(filters, category) {
+    console.log(chalk.gray('🎯 Applying enhanced filter system...'));
+    return this.filterSystem.generateEnhancedFilters(filters, category);
   }
 
   /**

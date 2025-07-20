@@ -7,11 +7,13 @@
  */
 
 import chalk from 'chalk';
+import { getEnhancedFilterSystem } from '../utils/enhanced-filters.js';
 
 class OpenRouterService {
   constructor(apiKey) {
     this.apiKey = apiKey;
     this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    this.filterSystem = getEnhancedFilterSystem();
     
     // Model configurations
     this.models = {
@@ -180,50 +182,19 @@ Generate trivia questions now:`;
   }
 
   /**
-   * Generate enhanced search context with randomization
+   * Generate enhanced search context using advanced filter system
    */
   generateEnhancedSearchContext(filters, category) {
-    const timestamp = Date.now();
-    const randomSeed = Math.random();
+    console.log(chalk.gray('🎯 Generating advanced search context...'));
     
-    // Base context from filters
-    let context = `Category: ${category}\n`;
-    
-    if (filters.era && filters.era !== 'all_eras') {
-      context += `Era: ${filters.era}\n`;
+    // Use the enhanced filter system if filters are already enhanced
+    if (filters.searchSeed) {
+      return this.filterSystem.filtersToSearchContext(filters);
     }
     
-    if (filters.countries && filters.countries.length > 0 && filters.countries[0] !== 'all_countries') {
-      context += `Countries: ${filters.countries.join(', ')}\n`;
-    }
-    
-    // Add randomization elements
-    const randomElements = [
-      'Focus on day/night matches',
-      'Include rain-affected games',
-      'Highlight debut performances',
-      'Feature comeback victories',
-      'Include controversial decisions',
-      'Focus on record-breaking moments',
-      'Highlight underdog victories',
-      'Include emotional farewells',
-      'Feature tactical masterclasses',
-      'Include technology controversies'
-    ];
-    
-    // Select 2-3 random elements
-    const selectedElements = [];
-    for (let i = 0; i < 3; i++) {
-      const index = Math.floor((randomSeed * (i + 1) * timestamp) % randomElements.length);
-      if (!selectedElements.includes(randomElements[index])) {
-        selectedElements.push(randomElements[index]);
-      }
-    }
-    
-    context += `Special Focus: ${selectedElements.join(', ')}\n`;
-    context += `Search Seed: ${timestamp}-${randomSeed.toString(36).substring(2, 7)}`;
-    
-    return context;
+    // Otherwise enhance them first
+    const enhancedFilters = this.filterSystem.generateEnhancedFilters(filters, category);
+    return this.filterSystem.filtersToSearchContext(enhancedFilters);
   }
 
   /**

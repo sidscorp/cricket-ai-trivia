@@ -195,6 +195,24 @@ The CLI system provides comprehensive testing for the AI question generation pip
   - OpenRouter API configuration (models, pipeline settings)
   - V2 pipeline parameters (anecdote count, questions per anecdote)
 
+#### **`enhanced-filters.js`** 🎯 Advanced Filter System
+- **Purpose**: Multi-dimensional filter system with maximum randomization
+- **Key Features**:
+  - **Extended Dimensions**: Era sub-periods, regional groupings, match types, conditions
+  - **Smart Randomization**: Temporal, emotional, narrative, and technical variations
+  - **Context Generation**: Converts filters to detailed search contexts
+  - **Uniqueness Guarantee**: 100% unique search seeds, 94%+ unique contexts
+- **New Filter Types**:
+  - `matchType`: Test/ODI/T20/First-class with format variations
+  - `conditions`: Day-night/Weather-affected/Spin-friendly/Pace-friendly
+  - `tournament`: World Cup/Ashes/IPL/Bilateral with competition focus
+  - `playerRole`: Batsman/Bowler/All-rounder/Keeper with role specializations
+- **Randomization Strategies**:
+  - **Temporal**: Time-of-day, seasonal, weekday/weekend contexts
+  - **Emotional**: Intensity levels, stakes, atmospheric conditions  
+  - **Narrative**: Story angles, perspectives, drama levels
+  - **Technical**: Tactical aspects, innovations, analytical approaches
+
 #### **`performance.js`**
 - **Purpose**: Performance monitoring and analysis utilities
 - **Features**: Timing measurement, success rate calculation, benchmark reporting

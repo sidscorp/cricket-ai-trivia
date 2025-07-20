@@ -14,7 +14,8 @@
     "cli:verify": "node cli/index.js verify",
     "cli:search": "node cli/index.js search",
     "cli:perf": "node cli/index.js performance",
-    "test:v2": "node cli/test-v2-pipeline.js"
+    "test:v2": "node cli/test-v2-pipeline.js",
+    "test:filters": "node cli/test-enhanced-filters.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
