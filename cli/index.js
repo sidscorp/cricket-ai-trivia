@@ -14,6 +14,7 @@ import { verifyCommand } from './commands/verify.js';
 import { performanceCommand } from './commands/performance.js';
 import { searchCommand } from './commands/search.js';
 import { searchGenerateCommand } from './commands/search-generate.js';
+import { searchGenerateV2Command } from './commands/search-generate-v2.js';
 
 const program = new Command();
 
@@ -34,7 +35,8 @@ program
   });
 
 // Add commands
-program.addCommand(searchGenerateCommand); // Main production command
+program.addCommand(searchGenerateCommand); // V1 production command
+program.addCommand(searchGenerateV2Command); // V2 OpenRouter two-phase pipeline
 program.addCommand(verifyCommand);
 program.addCommand(searchCommand);
 program.addCommand(performanceCommand);

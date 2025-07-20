@@ -11,6 +11,7 @@
     "cli": "node cli/index.js",
     "cli:help": "node cli/index.js help",
     "cli:questions": "node cli/index.js search-generate",
+    "cli:questions-v2": "node cli/index.js search-generate-v2",
     "cli:verify": "node cli/index.js verify",
     "cli:search": "node cli/index.js search",
     "cli:perf": "node cli/index.js performance",
