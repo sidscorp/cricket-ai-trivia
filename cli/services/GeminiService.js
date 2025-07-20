@@ -70,7 +70,7 @@ class GeminiService {
         baseConfig.temp + adjustment.tempBoost + randomVariation)),
       topP: Math.max(0.1, Math.min(0.95, 
         baseConfig.topP + adjustment.topPBoost + (randomVariation * 0.5))),
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
     };
   }
 
@@ -181,7 +181,9 @@ You are a master cricket storyteller specializing in dramatic, factual incidents
 Create questions about specific cricket incidents with maximum tension and emotion. Focus on pivotal moments, controversial decisions, record-breaking performances, and last-ball drama.
 
 FORMAT - CRITICAL:
-Return ONLY valid JSON. No markdown, comments, or extra text. Keep all strings on single lines.
+Return ONLY valid JSON. No markdown, comments, or extra text. Keep all strings SHORT and on single lines.
+Use brief, concise language. Limit question text to 150 characters max.
+Limit explanation text to 100 characters max.
 (Tests knowledge of actual event and rule)
 
 BAD: "According to the article, what was considered the most significant moment in the match?"
@@ -334,7 +336,7 @@ Validate and rank each question now:`;
     return {
       temperature: profile.temperature,
       topP: profile.topP,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
     };
   }
 
@@ -368,7 +370,7 @@ Validate and rank each question now:`;
   /**
    * Extract valid question objects from potentially truncated content
    */
-  extractValidQuestionsFromContent(content) {
+  extractValidQuestionsFromContent(content, contextArticles = []) {
     // First try standard JSON extraction
     try {
       let jsonText = this.extractJSONFromContent(content);
@@ -379,7 +381,7 @@ Validate and rank each question now:`;
     } catch (error) {
       console.log(`❌ Standard extraction failed: ${error.message}`);
       // If standard parsing fails, try progressive extraction
-      return this.progressiveQuestionExtraction(content);
+      return this.progressiveQuestionExtraction(content, contextArticles);
     }
   }
 
@@ -387,14 +389,17 @@ Validate and rank each question now:`;
    * Extract JSON text from content, handling markdown and formatting
    */
   extractJSONFromContent(content) {
+    // Clean the content first to remove control characters
+    const cleanedContent = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    
     // First try to extract from markdown code blocks
-    let markdownMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+    let markdownMatch = cleanedContent.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
     if (markdownMatch) {
       return this.cleanJSONText(markdownMatch[1]);
     }
     
     // Fallback to finding any JSON array
-    let jsonMatch = content.match(/\[[\s\S]*\]/);
+    let jsonMatch = cleanedContent.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('No valid JSON found in response');
     }
@@ -407,18 +412,22 @@ Validate and rank each question now:`;
    */
   cleanJSONText(jsonText) {
     return jsonText
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')  // Remove control chars first
       .replace(/\/\/.*$/gm, '')  // Remove line comments
       .replace(/\/\*[\s\S]*?\*\//g, '')  // Remove block comments
       .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
       .replace(/([{,]\s*)(\w+):/g, '$1"$2":')  // Quote unquoted keys
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')  // Remove control chars
+      .replace(/\n/g, ' ')  // Replace newlines with spaces
+      .replace(/\r/g, '')  // Remove carriage returns
+      .replace(/\t/g, ' ')  // Replace tabs with spaces
+      .replace(/\s+/g, ' ')  // Normalize whitespace
       .trim();
   }
 
   /**
    * Progressive extraction for partial/truncated responses
    */
-  progressiveQuestionExtraction(content) {
+  progressiveQuestionExtraction(content, contextArticles = []) {
     const validQuestions = [];
     
     // Try to extract individual question objects, even if the array is incomplete
@@ -427,7 +436,7 @@ Validate and rank each question now:`;
     for (const questionMatch of questionMatches) {
       try {
         // Try to complete the question object if it's truncated
-        const completedQuestion = this.completeQuestionObject(questionMatch);
+        const completedQuestion = this.completeQuestionObject(questionMatch, contextArticles);
         console.log(`Attempting to complete question: ${questionMatch.substring(0, 100)}...`);
         console.log(`Completed result: ${completedQuestion ? completedQuestion.substring(0, 100) + '...' : 'null'}`);
         
@@ -463,20 +472,23 @@ Validate and rank each question now:`;
   findQuestionObjectsInText(content) {
     const questions = [];
     
+    // Clean content first
+    const cleanedContent = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    
     // Pattern to find question objects (including incomplete ones)
     const questionPattern = /\{\s*"question"\s*:\s*"[^"]*"/g;
     let match;
     
-    while ((match = questionPattern.exec(content)) !== null) {
+    while ((match = questionPattern.exec(cleanedContent)) !== null) {
       const startIndex = match.index;
       
       // Find the end of this question object
       let braceCount = 1;
       let endIndex = startIndex + match[0].length;
       
-      for (let i = endIndex; i < content.length && braceCount > 0; i++) {
-        if (content[i] === '{') braceCount++;
-        else if (content[i] === '}') braceCount--;
+      for (let i = endIndex; i < cleanedContent.length && braceCount > 0; i++) {
+        if (cleanedContent[i] === '{') braceCount++;
+        else if (cleanedContent[i] === '}') braceCount--;
         
         if (braceCount === 0) {
           endIndex = i + 1;
@@ -484,7 +496,7 @@ Validate and rank each question now:`;
         }
       }
       
-      questions.push(content.substring(startIndex, endIndex));
+      questions.push(cleanedContent.substring(startIndex, endIndex));
     }
     
     return questions;
@@ -493,7 +505,7 @@ Validate and rank each question now:`;
   /**
    * Try to complete a truncated question object
    */
-  completeQuestionObject(questionText) {
+  completeQuestionObject(questionText, contextArticles = []) {
     // Simple approach: if we have the essential fields, just close the object with minimal defaults
     const hasQuestion = /"question"\s*:\s*"[^"]*"/.test(questionText);
     const hasOptions = /"options"\s*:\s*\[/.test(questionText);
@@ -502,15 +514,19 @@ Validate and rank each question now:`;
     if (hasQuestion && hasOptions && hasCorrectAnswer) {
       let completed = questionText.trim();
       
-      // Simple fix: Just ensure the object ends properly
-      // Find the last complete field and close from there
+      // Extract question content to match with best source
+      const questionMatch = completed.match(/"question"\s*:\s*"([^"]*)"/); 
+      const questionContent = questionMatch ? questionMatch[1] : '';
+      
+      // Find the best matching article source
+      const bestSource = this.findBestSourceForQuestion(questionContent, contextArticles);
       
       // If we have correctAnswer, that's usually enough - just add defaults for the rest
       const correctAnswerMatch = completed.match(/"correctAnswer"\s*:\s*\d+/);
       if (correctAnswerMatch) {
         const endOfCorrectAnswer = correctAnswerMatch.index + correctAnswerMatch[0].length;
         completed = completed.substring(0, endOfCorrectAnswer) + 
-                   ', "explanation": "Explanation based on article content", "source": "Generated from web sources"}';
+                   `, "explanation": "Explanation based on article content", "source": "${bestSource}"}`;
         return completed;
       }
     }
@@ -526,6 +542,37 @@ Validate and rank each question now:`;
     return requiredFields.every(field => 
       new RegExp(`"${field}"\\s*:`).test(jsonText)
     ) && jsonText.includes('}'); // Must have closing brace
+  }
+
+  /**
+   * Find the best source URL for a question based on content similarity
+   */
+  findBestSourceForQuestion(questionContent, contextArticles) {
+    if (!contextArticles || contextArticles.length === 0) {
+      return 'Generated from web sources';
+    }
+    
+    // If only one article, use it
+    if (contextArticles.length === 1) {
+      return contextArticles[0].link || 'Generated from web sources';
+    }
+    
+    // Score articles based on keyword overlap with question
+    const questionWords = questionContent.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+    let bestMatch = contextArticles[0];
+    let bestScore = 0;
+    
+    for (const article of contextArticles) {
+      const articleText = `${article.title || ''} ${article.snippet || ''}`.toLowerCase();
+      const score = questionWords.filter(word => articleText.includes(word)).length;
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = article;
+      }
+    }
+    
+    return bestMatch.link || 'Generated from web sources';
   }
 
   /**
@@ -553,7 +600,8 @@ Validate and rank each question now:`;
       }
 
       // Progressive JSON extraction - handle partial/truncated responses
-      const extractedQuestions = this.extractValidQuestionsFromContent(content);
+      const contextArticles = request.contextArticles || [];
+      const extractedQuestions = this.extractValidQuestionsFromContent(content, contextArticles);
       
       console.log(`Found ${extractedQuestions.length} valid questions from progressive extraction`);
       

@@ -229,8 +229,8 @@ async function adaptiveQuestionGeneration({ filters, category, targetQuestions, 
       continue;
     }
     
-    // Apply diverse source sampling
-    const selectedArticles = diversifySourceSelection(processedArticles, Math.min(8, processedArticles.length));
+    // Apply diverse source sampling with smaller count for token efficiency
+    const selectedArticles = diversifySourceSelection(processedArticles, Math.min(4, processedArticles.length));
     
     // Optimize articles for dramatic content and token efficiency
     const optimizedArticles = optimizeArticlesForContext(selectedArticles);
@@ -300,19 +300,19 @@ function calculateContentTokens(articles) {
  */
 function calculateSmartBatchSize(contentTokens, questionsNeeded) {
   // Base response budget (leaving room for prompt and response)
-  const responseTokenBudget = 2000;
+  const responseTokenBudget = 4000; // Increased to match Gemini's 4096 limit
   const promptTokens = 800; // Approximate prompt size
   const availableTokens = responseTokenBudget - promptTokens - contentTokens;
   
-  // Each question needs approximately 200 tokens
-  const tokensPerQuestion = 200;
+  // Each question needs approximately 250 tokens (increased for richer content)
+  const tokensPerQuestion = 250;
   const maxQuestions = Math.floor(availableTokens / tokensPerQuestion);
   
   // Conservative sizing with safety margin
   const safeMaxQuestions = Math.max(1, Math.floor(maxQuestions * 0.8));
   
-  // Return the minimum of safe limit and what we need
-  return Math.min(safeMaxQuestions, questionsNeeded, 5);
+  // Return the minimum of safe limit and what we need (increased max)
+  return Math.min(safeMaxQuestions, questionsNeeded, 8);
 }
 
 /**
