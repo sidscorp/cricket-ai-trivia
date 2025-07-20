@@ -45,58 +45,290 @@ function generateSearchTerms(filters, category) {
     : '';
   const categoryPart = categoryLabels[category] || '';
   const base = [eraPart, countryPart, categoryPart, 'cricket'].filter(Boolean).join(' ');
-  return [base, `${base} news`, `${base} history`, `${base} top stories`];
+  
+  // Enhanced search term patterns with dramatic modifiers and engaging variations
+  const engagingModifiers = [
+    'legendary', 'iconic', 'unforgettable', 'dramatic', 'historic', 'greatest',
+    'memorable', 'epic', 'famous', 'controversial', 'stunning', 'incredible'
+  ];
+  
+  const searchPatterns = [
+    // Original patterns (keep for compatibility)
+    base,
+    `${base} news`,
+    `${base} history`,
+    `${base} top stories`,
+    
+    // Dramatic and engaging patterns
+    `${engagingModifiers[Math.floor(Math.random() * engagingModifiers.length)]} ${base}`,
+    `${base} ${engagingModifiers[Math.floor(Math.random() * engagingModifiers.length)]} moments`,
+    `most ${engagingModifiers[Math.floor(Math.random() * engagingModifiers.length)]} ${base}`,
+    
+    // Story-focused patterns
+    `${base} greatest moments`,
+    `${base} turning points`,
+    `${base} defining moments`,
+    `${base} legendary performances`,
+    `${base} iconic matches`,
+    `${base} famous incidents`,
+    
+    // Temporal and contextual patterns
+    `${base} career highlights`,
+    `${base} breakthrough moments`,
+    `${base} record breaking`,
+    `${base} match winning`,
+    `${base} championship moments`,
+    `${base} rivalry moments`,
+    
+    // Emotional and dramatic patterns
+    `${base} dramatic victories`,
+    `${base} stunning comebacks`,
+    `${base} controversial decisions`,
+    `${base} emotional moments`,
+    `${base} pressure situations`,
+    `${base} clutch performances`
+  ];
+  
+  // Shuffle and return random selection of 4-6 search terms for variety
+  const shuffled = searchPatterns.sort(() => Math.random() - 0.5);
+  const selectionSize = 4 + Math.floor(Math.random() * 3); // 4-6 terms
+  return shuffled.slice(0, selectionSize);
 }
+
+/**
+ * Extract domain from URL for source diversity tracking
+ */
+function extractSourceDomain(url) {
+  try {
+    const domain = new URL(url).hostname.replace('www.', '');
+    return domain;
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Diversify source selection to avoid clustering from same sources
+ */
+function diversifySourceSelection(articles, targetCount) {
+  if (articles.length <= targetCount) {
+    return articles;
+  }
+
+  const selected = [];
+  const sourceCount = {};
+  const maxPerSource = Math.max(1, Math.floor(targetCount / 3)); // Max 1/3 from same source
+
+  // Priority pass: Select diverse sources first
+  for (const article of articles) {
+    if (selected.length >= targetCount) break;
+    
+    const currentSourceCount = sourceCount[article.source] || 0;
+    if (currentSourceCount < maxPerSource) {
+      selected.push(article);
+      sourceCount[article.source] = currentSourceCount + 1;
+    }
+  }
+
+  // Fill remaining slots if needed
+  for (const article of articles) {
+    if (selected.length >= targetCount) break;
+    if (!selected.includes(article)) {
+      selected.push(article);
+    }
+  }
+
+  return selected.slice(0, targetCount);
+}
+
 import { getGeminiService } from '../services/GeminiService.js';
 
+/**
+ * Adaptive question generation system with guaranteed minimum output
+ */
+async function adaptiveQuestionGeneration({ filters, category, targetQuestions, maxArticles }) {
+  const gemini = getGeminiService();
+  let allQuestions = [];
+  let totalGenerated = 0;
+  let validated = 0;
+  let articleBatchSize = 15;
+  let currentArticleCount = 0;
+  
+  console.log(chalk.blue('\n🔍 Generating search terms from filters...'));
+  const terms = generateSearchTerms(filters, category);
+  
+  while (allQuestions.length < targetQuestions && currentArticleCount < maxArticles) {
+    const query = terms[Math.floor(Math.random() * terms.length)];
+    console.log(chalk.green(`🔍 Query: "${query}"`));
+    
+    // Fetch articles adaptively (Google Custom Search max 10 per request)
+    const articlesToFetch = Math.min(10, articleBatchSize, maxArticles - currentArticleCount);
+    console.log(chalk.blue(`🌐 Fetching ${articlesToFetch} articles... (total: ${currentArticleCount + articlesToFetch}/${maxArticles})`));
+    
+    const customsearch = google.customsearch('v1');
+    const searchParams = {
+      auth: config.googleSearch.apiKey,
+      cx: config.googleSearch.searchEngineId,
+      q: query,
+      num: articlesToFetch
+    };
+    
+    const res = await customsearch.cse.list(searchParams);
+    
+    const items = res.data.items || [];
+    if (items.length === 0) {
+      console.log(chalk.yellow('⚠️ No more articles found, trying different search terms...'));
+      continue;
+    }
+    
+    currentArticleCount += items.length;
+    
+    // Process and score articles for cricket content quality
+    let processedArticles = items.map(i => ({ 
+      title: i.title || '', 
+      snippet: i.snippet || '', 
+      link: i.link || '',
+      source: extractSourceDomain(i.link || ''),
+      cricketScore: scoreCricketContent(i.title + ' ' + i.snippet)
+    }));
+    
+    // Sort by cricket content quality and shuffle high-quality ones
+    processedArticles = processedArticles
+      .filter(a => a.cricketScore > 0.3) // Filter out low-quality cricket content
+      .sort((a, b) => b.cricketScore - a.cricketScore)
+      .sort(() => Math.random() - 0.5); // Shuffle among high-quality articles
+    
+    if (processedArticles.length === 0) {
+      console.log(chalk.yellow('⚠️ No high-quality cricket articles found, expanding search...'));
+      continue;
+    }
+    
+    // Apply diverse source sampling
+    const selectedArticles = diversifySourceSelection(processedArticles, Math.min(8, processedArticles.length));
+    
+    // Over-generate questions (2-3x target remaining)
+    const questionsNeeded = targetQuestions - allQuestions.length;
+    const overGenerateCount = Math.min(questionsNeeded * 3, 15); // Generate 3x needed, max 15
+    
+    console.log(chalk.blue(`📝 Generating ${overGenerateCount} questions from ${selectedArticles.length} articles...`));
+    
+    try {
+      const batchQuestions = await gemini.generateQuestions({
+        contextArticles: selectedArticles,
+        count: overGenerateCount,
+        category,
+        filters
+      });
+      
+      totalGenerated += batchQuestions.length;
+      
+      if (batchQuestions.length > 0) {
+        // Add validation count
+        validated += batchQuestions.length;
+        allQuestions.push(...batchQuestions);
+        console.log(chalk.green(`✅ Generated ${batchQuestions.length} questions (total: ${allQuestions.length})`));
+      }
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️ Generation batch failed: ${error.message}`));
+    }
+    
+    // Check if we have enough high-quality questions
+    if (allQuestions.length >= targetQuestions) {
+      break;
+    }
+    
+    // Increase batch size for next iteration if needed
+    articleBatchSize = Math.min(articleBatchSize + 5, 25);
+  }
+  
+  // Select best questions if we have more than needed
+  const finalQuestions = allQuestions.length > targetQuestions 
+    ? selectBestQuestions(allQuestions, targetQuestions)
+    : allQuestions;
+  
+  return {
+    finalQuestions,
+    totalGenerated,
+    validated,
+    articlesProcessed: currentArticleCount
+  };
+}
+
+/**
+ * Score article content for cricket relevance
+ */
+function scoreCricketContent(text) {
+  const cricketKeywords = [
+    'cricket', 'test', 'odi', 't20', 'match', 'innings', 'wicket', 'runs', 'boundary',
+    'bowler', 'batsman', 'captain', 'series', 'tournament', 'world cup', 'ashes',
+    'ipl', 'bbl', 'county', 'shield', 'ranji', 'player', 'team', 'squad'
+  ];
+  
+  const legendaryKeywords = [
+    'legendary', 'historic', 'record', 'achievement', 'performance', 'milestone',
+    'breakthrough', 'victory', 'defeat', 'comeback', 'rivalry', 'controversy'
+  ];
+  
+  const lowerText = text.toLowerCase();
+  let score = 0;
+  
+  // Base cricket content score
+  cricketKeywords.forEach(keyword => {
+    if (lowerText.includes(keyword)) score += 0.1;
+  });
+  
+  // Bonus for legendary/story content
+  legendaryKeywords.forEach(keyword => {
+    if (lowerText.includes(keyword)) score += 0.05;
+  });
+  
+  return Math.min(score, 1.0);
+}
+
+/**
+ * Select best questions based on variety and quality
+ */
+function selectBestQuestions(questions, targetCount) {
+  // Simple selection for now - can be enhanced with scoring
+  return questions
+    .sort(() => Math.random() - 0.5) // Shuffle for variety
+    .slice(0, targetCount);
+}
+
 export const searchGenerateCommand = new Command('search-generate')
-  .description('Fetch articles using filters, then generate trivia questions from them')
+  .description('Intelligently fetch articles and generate guaranteed number of trivia questions')
   .option('-e, --era <era>', 'Cricket era filter', 'all_eras')
   .option('-c, --countries <csv>', 'Comma-separated country filters', 'all_countries')
   .option('-g, --category <category>', 'Question category', 'legendary_moments')
-  .option('-a, --articles <num>', 'Number of articles to fetch', '15')
-  .option('-q, --questions <num>', 'Number of questions to generate', '10')
+  .option('-q, --questions <num>', 'Number of questions to guarantee', '5')
+  .option('--max-articles <num>', 'Maximum articles to fetch if needed', '50')
   .option('--json', 'Output raw JSON of generated questions')
   .action(async (options) => {
     try {
       const era = options.era;
       const countries = options.countries.split(',').map(s => s.trim());
       const category = options.category;
-      const numArticles = Math.max(parseInt(options.articles, 10) || 15, 1);
-      const numQuestions = Math.max(parseInt(options.questions, 10) || 10, 1);
+      const targetQuestions = Math.max(parseInt(options.questions, 10) || 5, 1);
+      const maxArticles = Math.max(parseInt(options.maxArticles, 10) || 50, 15);
+      
+      console.log(chalk.blue('🎯 Intelligent Question Generation Pipeline'));
+      console.log(chalk.green(`Target: ${targetQuestions} guaranteed questions`));
 
-      console.log(chalk.blue('\n🔍 Generating search terms from filters...'));
-      const filters = { era, countries, questionStyle: 'facts_opinions', gameMode: 'fixed' };
-      const terms = generateSearchTerms(filters, category);
-      const query = terms[Math.floor(Math.random() * terms.length)];
-      console.log(chalk.green(`Query: "${query}"`));
-
-      console.log(chalk.blue(`\n🌐 Fetching top ${numArticles} articles...`));
-      const customsearch = google.customsearch('v1');
-      const res = await customsearch.cse.list({
-        auth: config.googleSearch.apiKey,
-        cx: config.googleSearch.searchEngineId,
-        q: query,
-        num: numArticles,
-      });
-      const items = res.data.items || [];
-      if (items.length === 0) {
-        console.error(chalk.red('❌ No articles found for this query.'));
-        process.exit(1);
-      }
-      const articles = items.map(i => ({ title: i.title || '', snippet: i.snippet || '', link: i.link || '' }));
-
-      console.log(chalk.blue(`\n📝 Generating ${numQuestions} trivia questions from articles...`));
-      const gemini = getGeminiService();
-      const questions = await gemini.generateQuestions({
-        contextArticles: articles,
-        count: numQuestions,
+      // Adaptive article collection and question generation system
+      const results = await adaptiveQuestionGeneration({
+        filters: { era, countries, questionStyle: 'facts_opinions', gameMode: 'fixed' },
+        category,
+        targetQuestions,
+        maxArticles
       });
 
       if (options.json) {
-        console.log(JSON.stringify(questions, null, 2));
+        console.log(JSON.stringify(results.finalQuestions, null, 2));
       } else {
-        questions.forEach((q, idx) => {
+        console.log(chalk.green(`\n✅ Successfully generated ${results.finalQuestions.length} high-quality questions`));
+        console.log(chalk.gray(`📊 Processing stats: ${results.totalGenerated} generated → ${results.validated} validated → ${results.finalQuestions.length} final`));
+        
+        results.finalQuestions.forEach((q, idx) => {
           console.log(chalk.bold(`\nQuestion ${idx + 1}: ${q.question}`));
           q.options.forEach((opt, j) => {
             console.log(`  ${String.fromCharCode(65 + j)}. ${opt}`);

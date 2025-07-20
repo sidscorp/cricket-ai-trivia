@@ -40,6 +40,14 @@
 - **5.4** Build caching strategy for offline question access
 - **5.5** Add analytics for question quality and user engagement
 
+## Epic 6 – Search-Driven Content Pipeline
+- **6.1** Define templated search-term generator based on in-app filters (era, country, category)
+- **6.2** Integrate Google Custom Search step into the question pipeline: fetch & preprocess top-N snippets
+- **6.3** Extend AI service (GeminiService/Hybrid) to accept raw article snippets for focused question generation
+- **6.4** Add UI hooks in TriviaGame to trigger background search+generation before displaying questions
+- **6.5** Expose search-driven pipeline in CLI (`search` + `grounded` commands) for end-to-end testing
+- **6.6** Update documentation and examples reflecting search-driven workflow
+
 ## ✅ Epic 1 COMPLETED: CLI Pipeline Validation
 **Goal**: ~~Prove the AI incident generation + web verification concept works end-to-end~~ ✅ **ACHIEVED**
 - ✅ Gemini web search grounding working with real-time verification
@@ -48,7 +56,7 @@
 - ✅ Complete CLI testing framework with 5 commands
 - ✅ Ready for Epic 2 implementation
 
-## 🎯 Next Priority: Epic 2 (Context Management & Filter Accuracy)
+## 🎯 Next Priority: Epic 6 (Search-Driven Content Pipeline)
 
 ---
 
@@ -76,6 +84,6 @@
 - **Storytelling Enhancement**: Rich narrative-driven questions with drama and context
 - **Epic 1 Status**: ✅ **COMPLETED** - Ready for production integration
 
-**Next Priority**: Epic 2 - Context Management & Filter Accuracy
+**Next Priority**: Epic 6 - Search-Driven Content Pipeline
 
 **Last Commit:** fe2a850 - Implement complete AI-powered cricket trivia generation pipeline with web verification

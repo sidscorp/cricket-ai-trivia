@@ -16,12 +16,62 @@ class GeminiService {
   async generateQuestions(request) {
     try {
       const prompt = this.buildPrompt(request);
-      const response = await this.callGeminiAPI(prompt);
-      return this.parseGeminiResponse(response, request);
+      
+      // Generate dynamic configuration based on difficulty and category for variety
+      const dynamicConfig = this.getDynamicConfigForRequest(request);
+      
+      const response = await this.callGeminiAPI(prompt, dynamicConfig);
+      const questions = this.parseGeminiResponse(response, request);
+      
+      // Add validation layer for article-based questions
+      if (request.contextArticles && questions.length > 0) {
+        const validatedQuestions = await this.validateQuestionsAgainstArticles(questions, request.contextArticles);
+        return validatedQuestions;
+      }
+      
+      return questions;
     } catch (error) {
       console.error('Error generating questions:', error);
       throw new Error('Failed to generate questions. Please try again.');
     }
+  }
+
+  /**
+   * Generate dynamic configuration tailored to request parameters
+   */
+  getDynamicConfigForRequest(request) {
+    const difficulty = request.difficulty || 'medium';
+    const category = request.category || 'legendary_moments';
+    
+    // Base configuration profiles with random variation
+    const baseConfigs = {
+      easy: { temp: 0.6, topP: 0.7 },      // More focused for clarity
+      medium: { temp: 0.7, topP: 0.8 },    // Balanced approach
+      hard: { temp: 0.8, topP: 0.9 }       // More creative for complex stories
+    };
+    
+    // Category-specific adjustments for storytelling variety
+    const categoryAdjustments = {
+      legendary_moments: { tempBoost: 0.05, topPBoost: 0.05 }, // Extra drama
+      player_stories: { tempBoost: 0.02, topPBoost: 0.03 },    // Personal narrative
+      records_stats: { tempBoost: -0.02, topPBoost: -0.02 },   // More focused
+      rules_formats: { tempBoost: -0.03, topPBoost: -0.03 },   // Precision needed
+      cultural_impact: { tempBoost: 0.03, topPBoost: 0.04 }    // Creative context
+    };
+    
+    const baseConfig = baseConfigs[difficulty] || baseConfigs.medium;
+    const adjustment = categoryAdjustments[category] || { tempBoost: 0, topPBoost: 0 };
+    
+    // Add random variation for further diversity
+    const randomVariation = (Math.random() - 0.5) * 0.1; // ±0.05 variation
+    
+    return {
+      temperature: Math.max(0.1, Math.min(0.95, 
+        baseConfig.temp + adjustment.tempBoost + randomVariation)),
+      topP: Math.max(0.1, Math.min(0.95, 
+        baseConfig.topP + adjustment.topPBoost + (randomVariation * 0.5))),
+      maxOutputTokens: 2048,
+    };
   }
 
   /**
@@ -45,33 +95,62 @@ class GeminiService {
       return this.buildTutorialPrompt(count);
     }
 
-    return `You are a cricket trivia expert. Generate ${count} engaging cricket trivia question(s) with the following requirements:
+    return `SYSTEM:
+You are a master cricket storyteller and legendary trivia creator. Your expertise transforms cricket history into irresistible trivia that captivates cricket fans worldwide. Create ${count} EPIC cricket questions that tell unforgettable stories.
 
-CATEGORY: ${categoryContext}
-DIFFICULTY: ${difficultyGuidance}
+🏏 TARGET CATEGORY: ${categoryContext}
+📈 DIFFICULTY LEVEL: ${difficultyGuidance}
 ${eraContext}
 ${countryContext}
 ${styleContext}
 
-QUESTION QUALITY REQUIREMENTS:
-- Include contextual storytelling, not just facts
-- Make questions interesting with historical anecdotes
-- Avoid simple stat-based questions unless they have compelling context
-- Each question should teach something memorable about cricket
-- Questions should be engaging for cricket fans of various knowledge levels
+🎯 LEGENDARY TRIVIA REQUIREMENTS:
+✅ FOCUS ON: Game-changing moments, legendary performances, dramatic victories, iconic rivalries, career-defining innings, record-breaking feats, emotional breakthroughs, controversial incidents, turning points that shaped cricket history
+
+✅ STORYTELLING ELEMENTS:
+- Set dramatic scene with tension and stakes
+- Include emotional context and human stories
+- Explain WHY the moment became legendary
+- Connect to cricket culture and fan memories
+- Use vivid language that brings history to life
+
+❌ ABSOLUTELY AVOID: Administrative facts (board positions, committee memberships), dry birth dates, simple debut years, generic statistics without drama, procedural information, boring award categories
+
+🎪 ENGAGEMENT MAGIC:
+- Start with compelling setup that hooks readers
+- Build tension before revealing the key question
+- Include stakes that matter to cricket fans
+- Make fans think "I MUST know this story!"
+- Test knowledge of moments fans actually discuss
+
+📖 STORY STRUCTURE FORMULA:
+1. DRAMA SETUP: "In the heat of [intense situation]..."
+2. STAKES: "With [important outcome] on the line..."
+3. PIVOTAL MOMENT: "Which [player/team/decision] [dramatic action]?"
+4. IMPACT: Explanation of why this became cricket legend
+
+EPIC EXAMPLES:
+
+LEGENDARY: "In the dying moments of the 2019 World Cup final at Lord's, with scores tied and England needing a boundary to win, which freak incident involving the ball hitting a diving Ben Stokes' bat gifted England the crucial extra runs that changed cricket history?"
+
+BORING: "In which year was the ICC formed?"
+
+LEGENDARY: "During the infamous 'Sandpaper Gate' scandal that rocked Australian cricket, which tearful captain's press conference apology became one of the most watched moments in cricket history, ending his leadership career?"
+
+BORING: "Who was the ICC Chairman in 2018?"
 
 FORMAT REQUIREMENTS:
 Return ONLY a JSON array with this exact structure:
 [
   {
-    "question": "Question text with context and story",
+    "question": "Dramatic setup + story-driven question that tests cricket legends knowledge",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correctAnswer": 0,
-    "explanation": "Detailed explanation with additional context and why this answer is correct"
+    "explanation": "Rich storytelling explanation of why this moment became cricket legend and additional fascinating context"
   }
 ]
 
-Generate ${count} question(s) now:`;
+Generate ${count} LEGENDARY cricket trivia question(s) now:`;
   }
 
   /**
@@ -83,31 +162,212 @@ Generate ${count} question(s) now:`;
     ).join('\n\n');
 
     return `SYSTEM:
-You are a world-class cricket trivia question writer. Using the following article snippets as reference,
-generate ${count} engaging, entertaining, and informative multiple-choice trivia questions with
-clear story context and factual accuracy. Adhere to best trivia practices: compelling hooks,
-precise options, and concise explanations. Include the source URL for each question.
+You are a cricket fact extraction and trivia creation expert. Your mission is to identify concrete, verifiable cricket events from articles and transform them into engaging factual trivia questions.
+
+🎯 FACTUAL CONTENT EXTRACTION:
+✅ EXTRACT CONCRETE FACTS: Match results, player performances, specific scores, dates, venues, records broken, decisions made, incidents that occurred
+✅ FOCUS ON ACTUAL EVENTS: What actually happened in specific matches, series, tournaments, or situations described in the articles
+✅ VERIFIABLE INFORMATION: Facts that can be checked against cricket records, scorecards, and historical documentation
+
+❌ ABSOLUTELY AVOID: Article opinions, subjective assessments, what the article "says" or "suggests", editorial commentary, speculative content, administrative trivia
+
+📊 FACTUAL QUESTION FRAMEWORK:
+1. **FACT IDENTIFICATION**: Extract specific cricket facts (scores, names, venues, dates, results)
+2. **EVENT CONTEXTUALIZATION**: Set up the cricket situation where this fact occurred
+3. **QUESTION FORMATION**: Ask about the specific factual detail, not opinions or interpretations
+4. **ANSWER VERIFICATION**: Ensure the correct answer is a concrete fact from the article
+
+⚠️ CRITICAL REQUIREMENTS:
+- Questions MUST test knowledge of actual cricket events, not article content
+- Focus on "What happened?" not "What does the article say happened?"
+- Extract concrete cricket facts: WHO did WHAT, WHEN, WHERE, WHAT was the RESULT
+- Avoid subjective language like "most important," "greatest," "turning point" unless it's a factual designation
+- Questions should be answerable by someone who knows cricket history, regardless of having read the article
+
+🏏 FACTUAL QUESTION PATTERNS:
+
+GOOD: "In the 2019 World Cup final at Lord's, England's match-tying score led to a Super Over. What unusual rule decided the winner when the Super Over was also tied?"
+(Tests knowledge of actual event and rule)
+
+BAD: "According to the article, what was considered the most significant moment in the match?"
+(Tests article comprehension, not cricket knowledge)
+
+GOOD: "Which bowler took 6 wickets for 23 runs against Australia at Melbourne in 2020, achieving the best bowling figures for India in that series?"
+(Tests specific performance fact)
+
+BAD: "What performance did the article describe as 'legendary'?"
+(Tests article opinion, not cricket fact)
+
+ARTICLES FOR FACT EXTRACTION:
+${articleTexts}
+
+FACT EXTRACTION PROCESS:
+1. Read each article and identify concrete cricket events and facts
+2. For each fact, create context around the cricket situation
+3. Form questions that test knowledge of the actual event
+4. Ensure answers are verifiable cricket facts, not article interpretations
+
+SOURCE CITATION:
+- Use exact article URL that contained the fact
+- Questions test cricket knowledge, sourced from article information
+
+EXAMPLES OF PROPER FACTUAL QUESTIONS:
+
+EXCELLENT: "In the 2005 Ashes series at Edgbaston, England scored 407 in their first innings. Which Australian fast bowler took 5 wickets in that innings, including the crucial dismissal of Kevin Pietersen?"
+(Tests specific bowling performance fact)
+
+EXCELLENT: "During the 1983 World Cup final, Kapil Dev took a running catch to dismiss Viv Richards. At what score was Richards dismissed, effectively ending West Indies' chase?"
+(Tests specific match situation and score)
+
+AVOID: "What did ESPNCricinfo describe as the most memorable aspect of the match?"
+(Tests article content, not cricket facts)
+
+FORMAT REQUIREMENTS:
+Return ONLY a JSON array with ${count} elements:
+[{
+  "question": "Contextual setup + factual cricket question about specific event/performance/result",
+  "options": ["Specific cricket fact A", "Specific cricket fact B", "Specific cricket fact C", "Specific cricket fact D"],
+  "correctAnswer": 0,
+  "explanation": "Factual explanation of the cricket event and its significance in cricket history",
+  "source": "https://exact-article-url-here"
+}]
+
+Extract ${count} factual cricket events and create trivia questions:`;
+  }
+
+  /**
+   * Validate generated questions against source articles for accuracy and grounding
+   */
+  async validateQuestionsAgainstArticles(questions, articles) {
+    try {
+      const articleTexts = articles.map(
+        (a, i) => `${i + 1}. TITLE: ${a.title}\nURL: ${a.link}\nSNIPPET: ${a.snippet}`
+      ).join('\n\n');
+
+      const questionsText = questions.map(
+        (q, i) => `${i + 1}. QUESTION: ${q.question}\nOPTIONS: ${q.options.join(', ')}\nANSWER: ${q.options[q.correctAnswer]}\nSOURCE: ${q.source}`
+      ).join('\n\n');
+
+      const validationPrompt = `FACTUAL VALIDATION TASK:
+You are a cricket fact validation expert. Review each trivia question to ensure it tests factual cricket knowledge rather than article comprehension, and that facts are accurately extracted.
 
 ARTICLES:
 ${articleTexts}
 
-FORMAT:
-Return ONLY a JSON array with ${count} elements, each object:
-[{
-  "question": "...",
-  "options": ["A", "B", "C", "D"],
-  "correctAnswer": 0,
-  "explanation": "...",
-  "source": "..."
-}]
+QUESTIONS TO VALIDATE:
+${questionsText}
 
-Now generate ${count} cricket trivia questions:`;
+VALIDATION CRITERIA:
+✅ ACCEPT if: 
+- Question tests knowledge of specific cricket facts/events from articles
+- Answer is a verifiable cricket fact (score, name, date, result, performance)
+- Question focuses on "what happened" not "what article says"
+- Facts are accurately extracted from article content
+
+❌ REJECT if:
+- Question tests article comprehension rather than cricket knowledge
+- Contains subjective language ("most important", "greatest", "according to article")
+- Answer cannot be verified as factual cricket information
+- Question is about article opinions rather than cricket events
+- Facts are inaccurate or misrepresented
+
+QUALITY RANKING (for accepted questions):
+A = Excellent factual question with clear cricket event/performance
+B = Good factual question with minor issues
+C = Acceptable but could be more specific
+
+For each question, respond with:
+ACCEPT-A, ACCEPT-B, ACCEPT-C, or REJECT
+
+Example:
+1. ACCEPT-A
+2. REJECT
+3. ACCEPT-B
+
+Validate and rank each question now:`;
+
+      const validationResponse = await this.callGeminiAPI(validationPrompt, {
+        temperature: 0.2, // Low temperature for consistent validation
+        topP: 0.7,
+        maxOutputTokens: 512,
+      });
+
+      const validationResult = validationResponse.candidates[0]?.content?.parts[0]?.text || '';
+      const validationLines = validationResult.split('\n').filter(line => line.trim());
+      
+      // Filter and rank questions based on validation results
+      const rankedQuestions = questions.map((question, index) => {
+        const validationLine = validationLines[index] || '';
+        const isAccepted = validationLine.toLowerCase().includes('accept');
+        
+        let quality = 'C';
+        if (validationLine.includes('ACCEPT-A')) quality = 'A';
+        else if (validationLine.includes('ACCEPT-B')) quality = 'B';
+        else if (validationLine.includes('ACCEPT-C')) quality = 'C';
+        
+        if (!isAccepted) {
+          console.log(`🚫 Question ${index + 1} rejected: ${question.question.substring(0, 80)}...`);
+          return null;
+        }
+        
+        return { ...question, quality };
+      }).filter(q => q !== null);
+
+      // Sort by quality (A > B > C) for better selection
+      rankedQuestions.sort((a, b) => {
+        const qualityOrder = { 'A': 3, 'B': 2, 'C': 1 };
+        return qualityOrder[b.quality] - qualityOrder[a.quality];
+      });
+
+      console.log(`✅ Validated ${rankedQuestions.length}/${questions.length} questions (A:${rankedQuestions.filter(q => q.quality === 'A').length}, B:${rankedQuestions.filter(q => q.quality === 'B').length}, C:${rankedQuestions.filter(q => q.quality === 'C').length})`);
+      
+      return rankedQuestions;
+    } catch (error) {
+      console.error('Question validation failed:', error);
+      // Return original questions if validation fails
+      return questions;
+    }
   }
 
   /**
-   * Make HTTP request to Gemini API
+   * Generate dynamic configuration parameters for varied question generation
    */
-  async callGeminiAPI(prompt) {
+  getDynamicGenerationConfig() {
+    // Array of different configuration profiles for variety
+    const configProfiles = [
+      // Standard storytelling profile
+      { temperature: 0.7, topP: 0.8, name: 'balanced' },
+      
+      // Creative storytelling profile  
+      { temperature: 0.8, topP: 0.9, name: 'creative' },
+      
+      // Focused narrative profile
+      { temperature: 0.6, topP: 0.7, name: 'focused' },
+      
+      // Dynamic storytelling profile
+      { temperature: 0.75, topP: 0.85, name: 'dynamic' },
+      
+      // Engaging narrative profile
+      { temperature: 0.72, topP: 0.82, name: 'engaging' }
+    ];
+    
+    // Randomly select a configuration profile
+    const profile = configProfiles[Math.floor(Math.random() * configProfiles.length)];
+    
+    return {
+      temperature: profile.temperature,
+      topP: profile.topP,
+      maxOutputTokens: 2048,
+    };
+  }
+
+  /**
+   * Make HTTP request to Gemini API with dynamic configuration
+   */
+  async callGeminiAPI(prompt, generationConfig = null) {
+    // Dynamic generation config based on request parameters
+    const config = generationConfig || this.getDynamicGenerationConfig();
+    
     const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
       method: 'POST',
       headers: {
@@ -117,11 +377,7 @@ Now generate ${count} cricket trivia questions:`;
         contents: [{
           parts: [{ text: prompt }]
         }],
-        generationConfig: {
-          temperature: 0.7,
-          topP: 0.8,
-          maxOutputTokens: 2048,
-        },
+        generationConfig: config,
       }),
     });
 
@@ -172,12 +428,59 @@ Now generate ${count} cricket trivia questions:`;
    */
   getCategoryContext(category) {
     const contexts = {
-      legendary_moments: 'Historic cricket matches, iconic performances, memorable moments that defined cricket history',
-      player_stories: 'Career highlights, personal anecdotes, unique stories about cricketers past and present',
-      records_stats: 'Cricket records with compelling backstories, statistical achievements with context',
-      rules_formats: 'Cricket rules, game formats, evolution of the sport, equipment and playing conditions',
-      cultural_impact: 'Cricket in society, movies, politics, cultural significance in different countries',
-      tutorial: 'Basic cricket concepts for newcomers - game objectives, key roles, scoring, dismissals, overs, formats, famous venues, equipment, and cricket spirit'
+      legendary_moments: `🏆 LEGENDARY CRICKET MOMENTS - Focus on game-changing, spine-tingling moments that define cricket folklore:
+        • Match-winning performances under extreme pressure (last-ball finishes, impossible chases)
+        • Iconic rivalries and their defining battles (Ashes classics, Indo-Pak thrillers)
+        • Career-defining moments that elevated players to legendary status
+        • Controversial incidents that sparked debates and changed cricket
+        • Emotional breakthroughs (first wins, comeback stories, underdog triumphs)
+        • Record-breaking feats that left crowds speechless
+        FOCUS: Moments cricket fans debate, remember, and retell with passion`,
+        
+      player_stories: `👤 COMPELLING PLAYER NARRATIVES - Focus on human stories that resonate with cricket fans:
+        • Rise from adversity tales (poverty to stardom, injury comebacks)
+        • Personality-driven stories (unique characters, memorable quotes, quirks)
+        • Rivalry dynamics and personal battles on field
+        • Career-changing decisions and their dramatic consequences
+        • Behind-the-scenes drama and locker room legends
+        • Cultural impact and fan connections beyond cricket
+        FOCUS: Stories that make players legendary beyond just their statistics`,
+        
+      records_stats: `📊 RECORD-BREAKING DRAMA - Focus on statistical achievements with compelling narratives:
+        • Records broken in dramatic fashion or extraordinary circumstances
+        • Statistical milestones that changed cricket history or perception
+        • Unexpected record holders and their surprising achievements
+        • Records that involved controversy, pressure, or emotional stakes
+        • Comparative achievements that sparked debates about greatness
+        • Statistical oddities and cricket's most fascinating numbers
+        FOCUS: Numbers that tell dramatic stories, not just dry statistics`,
+        
+      rules_formats: `⚖️ GAME-CHANGING RULES & EVOLUTION - Focus on cricket's dramatic transformations:
+        • Rule changes that revolutionized cricket (DRS, powerplays, T20 innovations)
+        • Format evolution stories (how T20 changed cricket culture)
+        • Controversial law interpretations that decided matches
+        • Equipment innovations that changed the game
+        • Umpiring decisions that sparked rule changes
+        • Playing condition adaptations in different eras/countries
+        FOCUS: How cricket's evolution created memorable moments and debates`,
+        
+      cultural_impact: `🌍 CRICKET'S CULTURAL RESONANCE - Focus on cricket's deeper significance:
+        • Cricket's role in major cultural/political moments
+        • Matches that transcended sport (unity, diplomacy, social change)
+        • Cricket's influence on art, literature, movies, and popular culture
+        • Regional cricket traditions and their unique characteristics
+        • Cricket as a reflection of societal changes and values
+        • Fan culture phenomena and their lasting impact
+        FOCUS: When cricket became more than just a game`,
+        
+      tutorial: `🎓 CRICKET FUNDAMENTALS WITH ENGAGING CONTEXT - Make basics memorable:
+        • Core concepts explained through famous examples and memorable moments
+        • Rules illustrated with exciting match situations
+        • Equipment and format explanations with historical context
+        • Basic strategies demonstrated through legendary tactical decisions
+        • Cricket spirit and traditions explained through inspiring stories
+        • Venue significance and cricket geography with cultural stories
+        FOCUS: Teaching cricket through engaging stories rather than dry facts`
     };
     return contexts[category] || contexts.legendary_moments;
   }
