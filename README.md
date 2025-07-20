@@ -1,5 +1,9 @@
 # 🏏 CAT - Cricket AI Trivia
 
+<div align="center">
+  <img src="assets/branding/mascot_cat_with_bat.png" alt="CAT Mascot - Cricket playing cat with bat and gear" width="200"/>
+</div>
+
 An intelligent, AI-powered cricket trivia engine that generates engaging, factual questions through advanced web search integration and multi-layer validation. Built with React Native for cross-platform mobile experience and featuring a sophisticated CLI testing framework.
 
 ## About

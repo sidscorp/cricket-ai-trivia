@@ -45,5 +45,5 @@ yarn-error.*
 
 # except specific essential ones
 !README.md
-!NEXT_SESSION_TASKS.md
 !CODEBASE_GUIDE.md
+!FRESH_INSTALL_TEST.md

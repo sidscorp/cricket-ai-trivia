@@ -8,7 +8,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { GoogleSearchService } from '../services/google-search.js';
-import { EnhancedGeminiService } from '../services/archived/enhanced-gemini.js';
+import { CLIGeminiService } from '../services/GeminiService.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 
 export const verifyCommand = new Command('verify')
@@ -30,7 +30,7 @@ export const verifyCommand = new Command('verify')
 
       if (options.generate) {
         // Generate an incident first
-        const geminiService = new EnhancedGeminiService();
+        const geminiService = new CLIGeminiService();
         console.log(chalk.cyan('\n📝 Generating incident for verification...'));
         incident = await geminiService.generateIncident();
         console.log(chalk.gray(`Generated: "${incident.summary}"`));

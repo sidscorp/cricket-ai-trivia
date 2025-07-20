@@ -6,8 +6,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { EnhancedGeminiService } from '../services/archived/enhanced-gemini.js';
-import { GroundedGeminiService } from '../services/archived/grounded-gemini.js';
+import { CLIGeminiService } from '../services/GeminiService.js';
 import { GoogleSearchService } from '../services/google-search.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 import { URLResolver } from '../utils/url-resolver.js';
@@ -73,7 +72,7 @@ async function runPerformanceTest(options) {
   console.log(chalk.gray(`   Target: ${target}ms`));
   console.log(chalk.gray(`   Concurrency: ${concurrent}`));
 
-  const geminiService = useGrounded ? new GroundedGeminiService() : new EnhancedGeminiService();
+  const geminiService = new CLIGeminiService();
   const searchService = new GoogleSearchService();
 
   // Warmup phase

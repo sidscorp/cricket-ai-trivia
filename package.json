@@ -9,12 +9,11 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "cli": "node cli/index.js",
-    "test:generate": "node cli/index.js generate",
-    "test:verify": "node cli/index.js verify",
-    "test:pipeline": "node cli/index.js pipeline",
-    "test:performance": "node cli/index.js performance",
-    "test:grounded": "node cli/index.js grounded",
-    "test:story": "node cli/index.js grounded --type question --interactive"
+    "cli:help": "node cli/index.js help",
+    "cli:questions": "node cli/index.js search-generate",
+    "cli:verify": "node cli/index.js verify",
+    "cli:search": "node cli/index.js search",
+    "cli:perf": "node cli/index.js performance"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",

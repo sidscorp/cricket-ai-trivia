@@ -15,10 +15,15 @@ This is a dual-platform project combining:
 cricket-trivia/
 ├── 📱 Mobile App (React Native)
 │   ├── App.tsx                    # Main mobile app entry point
-│   ├── TriviaGame.tsx             # Legacy trivia game component
 │   ├── index.ts                   # Expo entry point
 │   ├── app.json                   # Expo configuration
-│   ├── assets/                    # App icons and images
+│   ├── assets/                    # App icons, images, and branding
+│   │   ├── branding/              # CAT mascot and brand assets
+│   │   │   └── mascot_cat_with_bat.png  # Main mascot image
+│   │   ├── adaptive-icon.png      # Android adaptive icon
+│   │   ├── favicon.png            # Web favicon
+│   │   ├── icon.png               # Main app icon
+│   │   └── splash-icon.png        # Splash screen icon
 │   └── src/                       # Main source code
 │
 ├── 🖥️ CLI Testing Framework
@@ -83,48 +88,37 @@ The CLI system provides comprehensive testing for the AI question generation pip
   - Registers all available commands
   - Handles command routing and error management
 
-### Commands (`cli/commands/`)
+### Commands (`cli/commands/`) - 4 Core Commands
 
-#### **`search-generate.js`** ⭐ Primary Command
-- **Purpose**: Intelligent question generation with guaranteed output
+#### **`search-generate.js`** ⭐ Main Production Command
+- **Purpose**: Primary intelligent pipeline with guaranteed question delivery
+- **Status**: ✅ Fully functional - core production system
 - **Features**:
   - Adaptive article fetching (15-50 articles automatically)
   - 3x over-generation strategy (generate 15 to get 5 final questions)
   - Cricket content quality scoring
   - Diverse source sampling to prevent clustering
   - A/B/C quality validation ranking
-- **Usage**: `node cli/index.js search-generate --questions 5 --era modern_era`
+- **Usage**: `npm run cli search-generate --questions 5 --era modern_era`
 - **Key Innovation**: Guarantees minimum question count through dynamic expansion
 
-#### **`grounded.js`**
-- **Purpose**: Enhanced storytelling with web search grounding
-- **Features**: Real-time web verification, rich narrative context
-- **Usage**: `node cli/index.js grounded --type question --era world_cup_era`
+#### **`verify.js`** 🔍 Web Verification Command
+- **Purpose**: Verifies cricket facts using Google Custom Search
+- **Status**: ✅ Fully functional - confidence scoring and source analysis
+- **Features**: Google Custom Search validation, confidence scoring, source quality ranking
+- **Usage**: `npm run cli verify --incident "cricket fact" --confidence 80 --show-sources`
 
-#### **`generate.js`**
-- **Purpose**: Basic AI question generation testing
-- **Features**: Direct Gemini API testing, filter validation
-- **Usage**: `node cli/index.js generate --interactive`
+#### **`search.js`** 🔍 Search API Testing
+- **Purpose**: Direct Google Custom Search API testing and validation
+- **Status**: ✅ Fully functional - validates search configuration
+- **Features**: Search term validation, result analysis, response time monitoring
+- **Usage**: `npm run cli search --query "cricket legends"`
 
-#### **`verify.js`**
-- **Purpose**: Web verification of cricket incidents
-- **Features**: Google Custom Search validation, confidence scoring
-- **Usage**: `node cli/index.js verify --generate --confidence 70`
-
-#### **`pipeline.js`**
-- **Purpose**: End-to-end pipeline testing
-- **Features**: Complete generation + verification workflow
-- **Usage**: `node cli/index.js pipeline --count 3 --detailed`
-
-#### **`performance.js`**
-- **Purpose**: Performance benchmarking and optimization
-- **Features**: Timing analysis, success rate monitoring, concurrent testing
-- **Usage**: `node cli/index.js performance --count 10 --target 3000`
-
-#### **`search.js`**
-- **Purpose**: Google Custom Search API testing
-- **Features**: Search term validation, result analysis
-- **Usage**: `node cli/index.js search --query "cricket legends"`
+#### **`performance.js`** ⚡ Performance Benchmarking
+- **Purpose**: Performance testing and pipeline optimization
+- **Status**: ⚠️ Partially functional - timing analysis with some method compatibility issues
+- **Features**: Timing analysis, success rate monitoring, memory usage tracking
+- **Usage**: `npm run cli performance --count 5 --target 3000`
 
 ### Services (`cli/services/`)
 
@@ -146,10 +140,6 @@ The CLI system provides comprehensive testing for the AI question generation pip
 - **Features**: Cricket-focused search, result filtering, confidence scoring
 - **Usage**: Used by verification and grounded commands
 
-#### **Archived Services** (`cli/services/archived/`)
-- **`enhanced-gemini.js`**: Legacy enhanced question generation
-- **`grounded-gemini.js`**: Legacy web-grounded generation
-- **Note**: Kept for reference, replaced by unified GeminiService
 
 ### Utilities (`cli/utils/`)
 
@@ -168,11 +158,20 @@ The CLI system provides comprehensive testing for the AI question generation pip
 
 ---
 
+## 🎨 Branding Assets
+
+### **`assets/branding/mascot_cat_with_bat.png`**
+- **Purpose**: Main CAT (Cricket AI Trivia) mascot image
+- **Description**: Anthropomorphic cricket-playing cat in professional batting kit
+- **Usage**: Featured in README.md, potential app icon, branding materials
+- **Generation**: Created with ChatGPT's DALL-E using prompt: *"Full-body portrait of an anthropomorphic cartoon cat in professional cricket batting kit, poised at crease ready for first ball, heroic slight upward camera angle, World XI jersey (WORLD XI text clear), realistic stadium backdrop softly defocused, late afternoon warm light with cool shadow balance, detailed bat grain, stylized fur with gentle specular highlights, cinematic depth, photoreal environment + charming cartoon subject hybrid, high resolution."*
+
+---
+
 ## 📱 Root Level Files
 
 ### App Entry Points
 - **`App.tsx`**: Main React Native application component
-- **`TriviaGame.tsx`**: Legacy root game component (being migrated to src/)
 - **`index.ts`**: Expo framework entry point
 
 ### Configuration Files
@@ -188,10 +187,20 @@ The CLI system provides comprehensive testing for the AI question generation pip
 - **`README.md`**: Main project documentation and setup instructions
 - **`CLI_README.md`**: Comprehensive CLI command reference and usage guide
 - **`TESTING_GUIDE.md`**: Testing procedures and quality assurance guidelines
-- **`NEXT_SESSION_TASKS.md`**: Development roadmap and epic tracking
+- **`FRESH_INSTALL_TEST.md`**: Step-by-step fresh installation testing guide
+
+### Environment Configuration
+- **`.env`**: Production environment variables with actual API keys
+- **`.env.example`**: Template file showing required environment variables
+- **`.env.local`**: Local development environment overrides
+- **Note**: `.env` files contain sensitive API keys and are excluded from git
 
 ### AI Assistant Configuration
 - **`claude.md`**: Instructions and context for AI development assistant
+
+### Development Dependencies
+- **`package-lock.json`**: NPM dependency lock file ensuring consistent installs
+- **`node_modules/`**: Installed Node.js dependencies and packages
 
 ### Assets
 - **`assets/`**: Contains app icons, splash screens, and mobile app imagery
@@ -265,9 +274,10 @@ The CLI system provides comprehensive testing for the AI question generation pip
 
 ### Completed Features ✅
 - **Mobile trivia game** with AI question generation
-- **Advanced CLI testing framework** with 7 commands
-- **Intelligent question pipeline** with guaranteed quantity
+- **Streamlined CLI testing framework** with 4 core commands
+- **Intelligent question pipeline** with guaranteed quantity (search-generate)
 - **Factual validation system** eliminating subjective content
+- **Web verification system** with confidence scoring (verify)
 - **Performance optimization** targeting 3-4 second generation
 
 ### Next Development Priorities

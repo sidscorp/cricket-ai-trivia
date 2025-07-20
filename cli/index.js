@@ -10,11 +10,8 @@ import 'ts-node/register';
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { generateCommand } from './commands/generate.js';
 import { verifyCommand } from './commands/verify.js';
-import { pipelineCommand } from './commands/pipeline.js';
 import { performanceCommand } from './commands/performance.js';
-import { groundedCommand } from './commands/grounded.js';
 import { searchCommand } from './commands/search.js';
 import { searchGenerateCommand } from './commands/search-generate.js';
 
@@ -37,13 +34,10 @@ program
   });
 
 // Add commands
-program.addCommand(generateCommand);
+program.addCommand(searchGenerateCommand); // Main production command
 program.addCommand(verifyCommand);
-program.addCommand(pipelineCommand);
-program.addCommand(performanceCommand);
-program.addCommand(groundedCommand);
 program.addCommand(searchCommand);
-program.addCommand(searchGenerateCommand);
+program.addCommand(performanceCommand);
 
 // Help command override
 program.helpCommand('help [command]');

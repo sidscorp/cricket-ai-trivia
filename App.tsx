@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Ale
 import Constants from 'expo-constants';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TriviaGame } from './TriviaGame';
+import { TriviaGame } from './src/components/TriviaGame';
 import { GameFilters, CricketEra, CricketCountry, QuestionStyle, GameMode } from './src/types/Question';
 
 interface GameFiltersScreenProps {
