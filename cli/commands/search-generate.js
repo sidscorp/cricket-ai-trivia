@@ -52,6 +52,20 @@ function generateSearchTerms(filters, category) {
     'memorable', 'epic', 'famous', 'controversial', 'stunning', 'incredible'
   ];
   
+  // Incident-specific patterns for high-drama content
+  const incidentModifiers = [
+    'controversial moment', 'turning point', 'dramatic finish', 'record-breaking',
+    'underdog victory', 'last-ball thriller', 'historic comeback', 'shock upset',
+    'weather-affected', 'abandoned match', 'protest incident', 'technology controversy',
+    'nail-biting finish', 'super over', 'tie match', 'debut performance'
+  ];
+  
+  // Multi-angle incident search patterns
+  const incidentAngles = [
+    'what happened', 'behind the scenes', 'player reactions', 
+    'match report', 'statistical significance', 'crowd reaction'
+  ];
+  
   const searchPatterns = [
     // Original patterns (keep for compatibility)
     base,
@@ -72,6 +86,11 @@ function generateSearchTerms(filters, category) {
     `${base} iconic matches`,
     `${base} famous incidents`,
     
+    // Incident-specific dramatic patterns
+    `${base} ${incidentModifiers[Math.floor(Math.random() * incidentModifiers.length)]}`,
+    `${incidentModifiers[Math.floor(Math.random() * incidentModifiers.length)]} ${base}`,
+    `${base} ${incidentAngles[Math.floor(Math.random() * incidentAngles.length)]}`,
+    
     // Temporal and contextual patterns
     `${base} career highlights`,
     `${base} breakthrough moments`,
@@ -86,7 +105,14 @@ function generateSearchTerms(filters, category) {
     `${base} controversial decisions`,
     `${base} emotional moments`,
     `${base} pressure situations`,
-    `${base} clutch performances`
+    `${base} clutch performances`,
+    
+    // Specific dramatic cricket scenarios
+    `${base} last over drama`,
+    `${base} rain affected thriller`,
+    `${base} DRS controversy`,
+    `${base} hat-trick moment`,
+    `${base} century under pressure`
   ];
   
   // Shuffle and return random selection of 4-6 search terms for variety
@@ -206,16 +232,20 @@ async function adaptiveQuestionGeneration({ filters, category, targetQuestions, 
     // Apply diverse source sampling
     const selectedArticles = diversifySourceSelection(processedArticles, Math.min(8, processedArticles.length));
     
-    // Over-generate questions (2-3x target remaining)
-    const questionsNeeded = targetQuestions - allQuestions.length;
-    const overGenerateCount = Math.min(questionsNeeded * 3, 15); // Generate 3x needed, max 15
+    // Optimize articles for dramatic content and token efficiency
+    const optimizedArticles = optimizeArticlesForContext(selectedArticles);
     
-    console.log(chalk.blue(`📝 Generating ${overGenerateCount} questions from ${selectedArticles.length} articles...`));
+    // Smart batch sizing based on content complexity
+    const questionsNeeded = targetQuestions - allQuestions.length;
+    const contentTokens = calculateContentTokens(optimizedArticles);
+    const smartBatchSize = calculateSmartBatchSize(contentTokens, questionsNeeded);
+    
+    console.log(chalk.blue(`📝 Generating ${smartBatchSize} questions from ${optimizedArticles.length} articles (${contentTokens} tokens)...`));
     
     try {
       const batchQuestions = await gemini.generateQuestions({
-        contextArticles: selectedArticles,
-        count: overGenerateCount,
+        contextArticles: optimizedArticles,
+        count: smartBatchSize,
         category,
         filters
       });
@@ -230,6 +260,7 @@ async function adaptiveQuestionGeneration({ filters, category, targetQuestions, 
       }
     } catch (error) {
       console.log(chalk.yellow(`⚠️ Generation batch failed: ${error.message}`));
+      // Continue to next iteration to try with different articles
     }
     
     // Check if we have enough high-quality questions
@@ -255,7 +286,90 @@ async function adaptiveQuestionGeneration({ filters, category, targetQuestions, 
 }
 
 /**
- * Score article content for cricket relevance
+ * Calculate approximate token count for content
+ */
+function calculateContentTokens(articles) {
+  const totalContent = articles.reduce((acc, article) => 
+    acc + (article.title || '').length + (article.snippet || '').length, 0
+  );
+  return Math.ceil(totalContent / 4); // Rough approximation: 4 chars per token
+}
+
+/**
+ * Calculate smart batch size based on content complexity
+ */
+function calculateSmartBatchSize(contentTokens, questionsNeeded) {
+  // Base response budget (leaving room for prompt and response)
+  const responseTokenBudget = 2000;
+  const promptTokens = 800; // Approximate prompt size
+  const availableTokens = responseTokenBudget - promptTokens - contentTokens;
+  
+  // Each question needs approximately 200 tokens
+  const tokensPerQuestion = 200;
+  const maxQuestions = Math.floor(availableTokens / tokensPerQuestion);
+  
+  // Conservative sizing with safety margin
+  const safeMaxQuestions = Math.max(1, Math.floor(maxQuestions * 0.8));
+  
+  // Return the minimum of safe limit and what we need
+  return Math.min(safeMaxQuestions, questionsNeeded, 5);
+}
+
+/**
+ * Optimize articles for key dramatic content while preserving engagement
+ */
+function optimizeArticlesForContext(articles) {
+  return articles.map(article => {
+    const title = article.title || '';
+    const snippet = article.snippet || '';
+    
+    // Extract sentences with high drama potential
+    const sentences = snippet.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const dramaticSentences = sentences
+      .map(sentence => ({
+        text: sentence.trim(),
+        score: scoreDramaInSentence(sentence)
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2) // Keep top 2 dramatic sentences
+      .map(s => s.text);
+    
+    const optimizedSnippet = dramaticSentences.join('. ') + (dramaticSentences.length > 0 ? '.' : '');
+    
+    return {
+      ...article,
+      snippet: optimizedSnippet.length > 0 ? optimizedSnippet : snippet.substring(0, 100),
+      originalLength: snippet.length,
+      optimizedLength: optimizedSnippet.length
+    };
+  });
+}
+
+/**
+ * Score individual sentence for dramatic content
+ */
+function scoreDramaInSentence(sentence) {
+  const dramaticWords = [
+    'dramatic', 'shocking', 'incredible', 'stunning', 'spectacular',
+    'last-ball', 'thriller', 'controversy', 'historic', 'legendary',
+    'victory', 'defeat', 'comeback', 'pressure', 'clutch', 'final'
+  ];
+  
+  const lowerSentence = sentence.toLowerCase();
+  let score = 0;
+  
+  dramaticWords.forEach(word => {
+    if (lowerSentence.includes(word)) score += 1;
+  });
+  
+  // Bonus for numbers (often indicate specific dramatic moments)
+  if (/\d+/.test(sentence)) score += 0.5;
+  
+  return score;
+}
+
+/**
+ * Score article content for cricket engagement and story potential
  */
 function scoreCricketContent(text) {
   const cricketKeywords = [
@@ -264,9 +378,22 @@ function scoreCricketContent(text) {
     'ipl', 'bbl', 'county', 'shield', 'ranji', 'player', 'team', 'squad'
   ];
   
-  const legendaryKeywords = [
-    'legendary', 'historic', 'record', 'achievement', 'performance', 'milestone',
-    'breakthrough', 'victory', 'defeat', 'comeback', 'rivalry', 'controversy'
+  const dramaticKeywords = [
+    'dramatic', 'shocking', 'unexpected', 'thriller', 'nail-biting',
+    'historic', 'first-ever', 'last-ball', 'super over', 'tie',
+    'controversial', 'stunning', 'incredible', 'unbelievable'
+  ];
+  
+  const narrativeElements = [
+    'comeback', 'underdog', 'rivalry', 'controversy', 'record',
+    'milestone', 'debut', 'farewell', 'injury', 'weather',
+    'protest', 'abandoned', 'emotional', 'pressure', 'clutch'
+  ];
+  
+  const specificIncidents = [
+    'hat-trick', 'century', 'maiden over', 'run out', 'stumping',
+    'catch', 'dropped catch', 'no-ball', 'wide', 'lbw',
+    'drs', 'review', 'umpire', 'decision', 'appeal'
   ];
   
   const lowerText = text.toLowerCase();
@@ -274,15 +401,37 @@ function scoreCricketContent(text) {
   
   // Base cricket content score
   cricketKeywords.forEach(keyword => {
-    if (lowerText.includes(keyword)) score += 0.1;
+    if (lowerText.includes(keyword)) score += 0.08;
   });
   
-  // Bonus for legendary/story content
-  legendaryKeywords.forEach(keyword => {
-    if (lowerText.includes(keyword)) score += 0.05;
+  // High bonus for dramatic content (story potential)
+  dramaticKeywords.forEach(keyword => {
+    if (lowerText.includes(keyword)) score += 0.15;
   });
   
-  return Math.min(score, 1.0);
+  // Bonus for narrative elements
+  narrativeElements.forEach(element => {
+    if (lowerText.includes(element)) score += 0.1;
+  });
+  
+  // Bonus for specific cricket incidents
+  specificIncidents.forEach(incident => {
+    if (lowerText.includes(incident)) score += 0.05;
+  });
+  
+  // Extra bonus for multiple dramatic elements
+  const dramaticCount = dramaticKeywords.filter(keyword => lowerText.includes(keyword)).length;
+  if (dramaticCount >= 2) score += 0.2;
+  
+  // Score numbers/statistics (often indicate factual incidents)
+  const hasNumbers = /\d+/.test(text);
+  if (hasNumbers) score += 0.05;
+  
+  // Score specific years (historical context)
+  const hasRecentYear = /(20[0-2]\d|19[8-9]\d)/.test(text);
+  if (hasRecentYear) score += 0.05;
+  
+  return Math.min(score, 2.0); // Allow higher scores for exceptional content
 }
 
 /**

@@ -162,31 +162,26 @@ Generate ${count} LEGENDARY cricket trivia question(s) now:`;
     ).join('\n\n');
 
     return `SYSTEM:
-You are a cricket fact extraction and trivia creation expert. Your mission is to identify concrete, verifiable cricket events from articles and transform them into engaging factual trivia questions.
+You are a master cricket storyteller specializing in dramatic, factual incidents. Transform concrete cricket events from articles into gripping, narrative-driven trivia that captures the drama and emotion of what actually happened.
 
-🎯 FACTUAL CONTENT EXTRACTION:
-✅ EXTRACT CONCRETE FACTS: Match results, player performances, specific scores, dates, venues, records broken, decisions made, incidents that occurred
-✅ FOCUS ON ACTUAL EVENTS: What actually happened in specific matches, series, tournaments, or situations described in the articles
-✅ VERIFIABLE INFORMATION: Facts that can be checked against cricket records, scorecards, and historical documentation
+🎯 DRAMATIC INCIDENT EXTRACTION:
+✅ IDENTIFY HIGH-DRAMA EVENTS: Last-ball finishes, controversial decisions, record-breaking performances, shocking upsets, weather interruptions, debut heroics, farewell moments
+✅ EXTRACT SPECIFIC DRAMA: The exact moment of tension, the key player action, the decisive factor, the unexpected twist
+✅ FACTUAL BUT THRILLING: Real incidents with maximum story potential - nail-biting, shocking, historic, emotional
 
-❌ ABSOLUTELY AVOID: Article opinions, subjective assessments, what the article "says" or "suggests", editorial commentary, speculative content, administrative trivia
+❌ AVOID BORING FACTS: Generic statistics, administrative details, routine performances, obvious outcomes
 
-📊 FACTUAL QUESTION FRAMEWORK:
-1. **FACT IDENTIFICATION**: Extract specific cricket facts (scores, names, venues, dates, results)
-2. **EVENT CONTEXTUALIZATION**: Set up the cricket situation where this fact occurred
-3. **QUESTION FORMATION**: Ask about the specific factual detail, not opinions or interpretations
-4. **ANSWER VERIFICATION**: Ensure the correct answer is a concrete fact from the article
+🎪 DRAMATIC STORYTELLING FRAMEWORK:
+1. **INCIDENT DISCOVERY**: Find the most dramatic, specific event in each article
+2. **TENSION BUILDING**: Set up the high-stakes situation and context
+3. **DRAMATIC QUESTION**: Focus on the pivotal moment, decision, or twist
+4. **EMOTIONAL IMPACT**: Capture why this moment was shocking/thrilling/historic
 
-⚠️ CRITICAL REQUIREMENTS:
-- Questions MUST test knowledge of actual cricket events, not article content
-- Focus on "What happened?" not "What does the article say happened?"
-- Extract concrete cricket facts: WHO did WHAT, WHEN, WHERE, WHAT was the RESULT
-- Avoid subjective language like "most important," "greatest," "turning point" unless it's a factual designation
-- Questions should be answerable by someone who knows cricket history, regardless of having read the article
+🎯 DRAMATIC STORYTELLING:
+Create questions about specific cricket incidents with maximum tension and emotion. Focus on pivotal moments, controversial decisions, record-breaking performances, and last-ball drama.
 
-🏏 FACTUAL QUESTION PATTERNS:
-
-GOOD: "In the 2019 World Cup final at Lord's, England's match-tying score led to a Super Over. What unusual rule decided the winner when the Super Over was also tied?"
+FORMAT - CRITICAL:
+Return ONLY valid JSON. No markdown, comments, or extra text. Keep all strings on single lines.
 (Tests knowledge of actual event and rule)
 
 BAD: "According to the article, what was considered the most significant moment in the match?"
@@ -213,26 +208,8 @@ SOURCE CITATION:
 
 EXAMPLES OF PROPER FACTUAL QUESTIONS:
 
-EXCELLENT: "In the 2005 Ashes series at Edgbaston, England scored 407 in their first innings. Which Australian fast bowler took 5 wickets in that innings, including the crucial dismissal of Kevin Pietersen?"
-(Tests specific bowling performance fact)
-
-EXCELLENT: "During the 1983 World Cup final, Kapil Dev took a running catch to dismiss Viv Richards. At what score was Richards dismissed, effectively ending West Indies' chase?"
-(Tests specific match situation and score)
-
-AVOID: "What did ESPNCricinfo describe as the most memorable aspect of the match?"
-(Tests article content, not cricket facts)
-
-FORMAT REQUIREMENTS:
-Return ONLY a JSON array with ${count} elements:
-[{
-  "question": "Contextual setup + factual cricket question about specific event/performance/result",
-  "options": ["Specific cricket fact A", "Specific cricket fact B", "Specific cricket fact C", "Specific cricket fact D"],
-  "correctAnswer": 0,
-  "explanation": "Factual explanation of the cricket event and its significance in cricket history",
-  "source": "https://exact-article-url-here"
-}]
-
-Extract ${count} factual cricket events and create trivia questions:`;
+Return JSON array with ${count} elements:
+[{"question":"Dramatic setup + factual cricket question","options":["A","B","C","D"],"correctAnswer":0,"explanation":"Brief explanation","source":"article-url"}]`;
   }
 
   /**
@@ -389,22 +366,205 @@ Validate and rank each question now:`;
   }
 
   /**
+   * Extract valid question objects from potentially truncated content
+   */
+  extractValidQuestionsFromContent(content) {
+    // First try standard JSON extraction
+    try {
+      let jsonText = this.extractJSONFromContent(content);
+      console.log(`Standard extraction found JSON: ${jsonText.substring(0, 100)}...`);
+      const result = JSON.parse(jsonText);
+      console.log(`✅ Standard extraction successful: ${result.length} questions`);
+      return result;
+    } catch (error) {
+      console.log(`❌ Standard extraction failed: ${error.message}`);
+      // If standard parsing fails, try progressive extraction
+      return this.progressiveQuestionExtraction(content);
+    }
+  }
+
+  /**
+   * Extract JSON text from content, handling markdown and formatting
+   */
+  extractJSONFromContent(content) {
+    // First try to extract from markdown code blocks
+    let markdownMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+    if (markdownMatch) {
+      return this.cleanJSONText(markdownMatch[1]);
+    }
+    
+    // Fallback to finding any JSON array
+    let jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON found in response');
+    }
+    
+    return this.cleanJSONText(jsonMatch[0]);
+  }
+
+  /**
+   * Clean JSON text for parsing
+   */
+  cleanJSONText(jsonText) {
+    return jsonText
+      .replace(/\/\/.*$/gm, '')  // Remove line comments
+      .replace(/\/\*[\s\S]*?\*\//g, '')  // Remove block comments
+      .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+      .replace(/([{,]\s*)(\w+):/g, '$1"$2":')  // Quote unquoted keys
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')  // Remove control chars
+      .trim();
+  }
+
+  /**
+   * Progressive extraction for partial/truncated responses
+   */
+  progressiveQuestionExtraction(content) {
+    const validQuestions = [];
+    
+    // Try to extract individual question objects, even if the array is incomplete
+    const questionMatches = this.findQuestionObjectsInText(content);
+    
+    for (const questionMatch of questionMatches) {
+      try {
+        // Try to complete the question object if it's truncated
+        const completedQuestion = this.completeQuestionObject(questionMatch);
+        console.log(`Attempting to complete question: ${questionMatch.substring(0, 100)}...`);
+        console.log(`Completed result: ${completedQuestion ? completedQuestion.substring(0, 100) + '...' : 'null'}`);
+        
+        if (completedQuestion) {
+          const cleanedQuestion = this.cleanJSONText(completedQuestion);
+          try {
+            const questionObj = JSON.parse(cleanedQuestion);
+            
+            // Validate the question has required fields
+            if (this.validateQuestionObject(questionObj)) {
+              validQuestions.push(questionObj);
+              console.log(`✅ Successfully extracted valid question`);
+            } else {
+              console.log(`❌ Question validation failed`);
+            }
+          } catch (parseError) {
+            console.log(`❌ JSON parse failed: ${parseError.message}`);
+            console.log(`Failed to parse: ${cleanedQuestion.substring(0, 200)}...`);
+          }
+        }
+      } catch (error) {
+        // Skip invalid question objects
+        continue;
+      }
+    }
+    
+    return validQuestions;
+  }
+
+  /**
+   * Find potential question objects in text, including incomplete ones
+   */
+  findQuestionObjectsInText(content) {
+    const questions = [];
+    
+    // Pattern to find question objects (including incomplete ones)
+    const questionPattern = /\{\s*"question"\s*:\s*"[^"]*"/g;
+    let match;
+    
+    while ((match = questionPattern.exec(content)) !== null) {
+      const startIndex = match.index;
+      
+      // Find the end of this question object
+      let braceCount = 1;
+      let endIndex = startIndex + match[0].length;
+      
+      for (let i = endIndex; i < content.length && braceCount > 0; i++) {
+        if (content[i] === '{') braceCount++;
+        else if (content[i] === '}') braceCount--;
+        
+        if (braceCount === 0) {
+          endIndex = i + 1;
+          break;
+        }
+      }
+      
+      questions.push(content.substring(startIndex, endIndex));
+    }
+    
+    return questions;
+  }
+
+  /**
+   * Try to complete a truncated question object
+   */
+  completeQuestionObject(questionText) {
+    // Simple approach: if we have the essential fields, just close the object with minimal defaults
+    const hasQuestion = /"question"\s*:\s*"[^"]*"/.test(questionText);
+    const hasOptions = /"options"\s*:\s*\[/.test(questionText);
+    const hasCorrectAnswer = /"correctAnswer"\s*:\s*\d+/.test(questionText);
+    
+    if (hasQuestion && hasOptions && hasCorrectAnswer) {
+      let completed = questionText.trim();
+      
+      // Simple fix: Just ensure the object ends properly
+      // Find the last complete field and close from there
+      
+      // If we have correctAnswer, that's usually enough - just add defaults for the rest
+      const correctAnswerMatch = completed.match(/"correctAnswer"\s*:\s*\d+/);
+      if (correctAnswerMatch) {
+        const endOfCorrectAnswer = correctAnswerMatch.index + correctAnswerMatch[0].length;
+        completed = completed.substring(0, endOfCorrectAnswer) + 
+                   ', "explanation": "Explanation based on article content", "source": "Generated from web sources"}';
+        return completed;
+      }
+    }
+    
+    return null; // Can't complete this question
+  }
+
+  /**
+   * Check if a JSON text represents a complete question object
+   */
+  isCompleteQuestionObject(jsonText) {
+    const requiredFields = ['question', 'options', 'correctAnswer'];
+    return requiredFields.every(field => 
+      new RegExp(`"${field}"\\s*:`).test(jsonText)
+    ) && jsonText.includes('}'); // Must have closing brace
+  }
+
+  /**
+   * Validate that a question object has all required fields
+   */
+  validateQuestionObject(questionObj) {
+    return questionObj.question && 
+           Array.isArray(questionObj.options) && 
+           questionObj.options.length === 4 &&
+           typeof questionObj.correctAnswer === 'number' &&
+           questionObj.correctAnswer >= 0 && 
+           questionObj.correctAnswer < 4;
+  }
+
+  /**
    * Parse Gemini response and convert to question objects
    */
   parseGeminiResponse(response, request) {
+    let content, jsonMatch, jsonText;
+    
     try {
-      const content = response.candidates[0]?.content?.parts[0]?.text;
+      content = response.candidates[0]?.content?.parts[0]?.text;
       if (!content) {
         throw new Error('No content received from Gemini');
       }
 
-      // Extract JSON from response (handle potential markdown formatting)
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No valid JSON found in response');
+      // Progressive JSON extraction - handle partial/truncated responses
+      const extractedQuestions = this.extractValidQuestionsFromContent(content);
+      
+      console.log(`Found ${extractedQuestions.length} valid questions from progressive extraction`);
+      
+      if (extractedQuestions.length === 0) {
+        console.log('Progressive extraction debug: searching for question patterns...');
+        const questionMatches = content.match(/\{\s*"question"/g);
+        console.log(`Found ${questionMatches ? questionMatches.length : 0} potential question starts`);
+        throw new Error('No valid questions found in response');
       }
 
-      const rawQuestions = JSON.parse(jsonMatch[0]);
+      const rawQuestions = extractedQuestions;
       
       return rawQuestions.map((q, index) => ({
         id: `${Date.now()}-${index}`,
@@ -419,6 +579,9 @@ Validate and rank each question now:`;
       }));
     } catch (error) {
       console.error('Error parsing Gemini response:', error);
+      if (content) console.error('Raw response content (first 500 chars):', content.substring(0, 500));
+      if (jsonMatch) console.error('JSON match found:', jsonMatch[0].substring(0, 200));
+      if (jsonText) console.error('Cleaned JSON:', jsonText.substring(0, 200));
       throw new Error('Failed to parse AI response. Please try again.');
     }
   }
