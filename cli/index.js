@@ -16,6 +16,8 @@ import { searchCommand } from './commands/search.js';
 import { searchGenerateCommand } from './commands/search-generate.js';
 import { searchGenerateV2Command } from './commands/search-generate-v2.js';
 import { speedTestCommand } from './commands/speed-test.js';
+import { learnCricketCommand } from './commands/learn-cricket.js';
+import { learnCricketFastCommand } from './commands/learn-cricket-fast.js';
 
 const program = new Command();
 
@@ -36,6 +38,8 @@ program
   });
 
 // Add commands
+program.addCommand(learnCricketCommand); // Learn Cricket mode for beginners
+program.addCommand(learnCricketFastCommand); // Learn Cricket speed test
 program.addCommand(searchGenerateCommand); // V1 production command
 program.addCommand(searchGenerateV2Command); // V2 OpenRouter two-phase pipeline
 program.addCommand(speedTestCommand); // V2 speed testing

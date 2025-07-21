@@ -522,8 +522,9 @@ export default function App() {
           <Text style={styles.title}>🏏 Cricket Trivia</Text>
           <Text style={styles.subtitle}>AI-Powered Cricket Questions</Text>
           
-          <TouchableOpacity style={styles.button} onPress={handleStartGame}>
-            <Text style={styles.buttonText}>Start Game</Text>
+          <TouchableOpacity style={[styles.button, styles.disabledButton]} disabled={true}>
+            <Text style={[styles.buttonText, styles.disabledButtonText]}>Start Game</Text>
+            <Text style={styles.comingSoonText}>Coming Soon</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.secondaryButton} onPress={handleLearnCricketMode}>
@@ -698,6 +699,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#666',
+    opacity: 0.7,
+  },
+  disabledButtonText: {
+    color: '#ccc',
+  },
+  comingSoonText: {
+    color: '#aaa',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   // Filter screen styles
   filterScrollContainer: {
