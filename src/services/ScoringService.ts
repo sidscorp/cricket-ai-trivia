@@ -36,23 +36,29 @@ export const cricketTimeScoringStrategy: ScoringStrategy = (context) => {
     };
   }
 
-  if (responseTime < 3) {
+  if (responseTime < 2) {
     return {
       points: 6,
       label: 'Six!',
       explanation: 'Lightning fast response!'
     };
-  } else if (responseTime < 5) {
+  } else if (responseTime < 3) {
     return {
       points: 4,
       label: 'Four!',
       explanation: 'Quick thinking!'
     };
-  } else if (responseTime < 10) {
+  } else if (responseTime < 5) {
+    return {
+      points: 2,
+      label: 'Double',
+      explanation: 'Good timing'
+    };
+  } else if (responseTime < 8) {
     return {
       points: 1,
       label: 'Single',
-      explanation: 'Good answer'
+      explanation: 'Steady response'
     };
   } else {
     return {
