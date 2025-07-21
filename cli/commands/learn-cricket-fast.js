@@ -7,8 +7,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { getLearnCricketService } from '../services/LearnCricketService.js';
-import { getLearnCricketServiceFast } from '../services/LearnCricketServiceFast.js';
+import { getLearnCricketService } from '../services/LearnCricketCLIAdapter.js';
+import { getLearnCricketServiceWithModel } from '../services/LearnCricketCLIAdapterFast.js';
+import { MODEL_SPECS } from '../../shared/config/ai-models.js';
 
 export const learnCricketFastCommand = new Command('learn-cricket-fast')
   .description('Compare speed of different Learn Cricket implementations')
@@ -31,23 +32,22 @@ export const learnCricketFastCommand = new Command('learn-cricket-fast')
         generationTime = Date.now() - startTime;
         
       } else if (options.mode === 'parallel') {
-        // Parallel generation with GPT-3.5
-        console.log(chalk.yellow('Using PARALLEL generation (2x3 questions)...\n'));
-        const service = getLearnCricketServiceFast();
+        // Note: Parallel generation removed - single batch is faster
+        console.log(chalk.yellow('PARALLEL mode deprecated - using FAST mode instead...\n'));
+        const service = getLearnCricketServiceWithModel('fast');
         
         const startTime = Date.now();
-        questions = await service.generateOverQuestionsParallel({ overNumber: 1 });
+        questions = await service.generateOverQuestions({ overNumber: 1 });
         generationTime = Date.now() - startTime;
         
       } else {
         // Fast mode with GPT-3.5
         console.log(chalk.yellow('Using FAST mode (GPT-3.5 Turbo)...\n'));
-        const service = getLearnCricketServiceFast();
+        const service = getLearnCricketServiceWithModel('fast');
         
         const startTime = Date.now();
         questions = await service.generateOverQuestions({ 
-          overNumber: 1,
-          modelPreference: 'fastest' 
+          overNumber: 1
         });
         generationTime = Date.now() - startTime;
       }
@@ -84,16 +84,13 @@ export const learnCricketFastCommand = new Command('learn-cricket-fast')
 
         if (testOthers) {
           console.log(chalk.cyan('\n🧪 Testing other models...\n'));
-          const service = getLearnCricketServiceFast();
           
           // Test free model
           console.log(chalk.gray('Testing Llama 3.1 (free)...'));
           const freeStart = Date.now();
           try {
-            await service.generateOverQuestions({ 
-              overNumber: 1,
-              modelPreference: 'free' 
-            });
+            const freeService = getLearnCricketServiceWithModel('free');
+            await freeService.generateOverQuestions({ overNumber: 1 });
             const freeTime = Date.now() - freeStart;
             console.log(chalk.green(`✓ Llama 3.1: ${freeTime}ms\n`));
           } catch (e) {
@@ -104,10 +101,8 @@ export const learnCricketFastCommand = new Command('learn-cricket-fast')
           console.log(chalk.gray('Testing Claude 3 Haiku...'));
           const haikuStart = Date.now();
           try {
-            await service.generateOverQuestions({ 
-              overNumber: 1,
-              modelPreference: 'balanced' 
-            });
+            const balancedService = getLearnCricketServiceWithModel('balanced');
+            await balancedService.generateOverQuestions({ overNumber: 1 });
             const haikuTime = Date.now() - haikuStart;
             console.log(chalk.green(`✓ Claude Haiku: ${haikuTime}ms\n`));
           } catch (e) {

@@ -1,0 +1,13 @@
+{
+  "name": "@cricket-trivia/shared",
+  "version": "1.0.0",
+  "description": "Shared modules for Cricket Trivia CLI and UI",
+  "type": "module",
+  "exports": {
+    "./config/ai-models": "./config/ai-models.js",
+    "./config/cricket-topics": "./config/cricket-topics.js",
+    "./config/constants": "./config/constants.js",
+    "./services/LearnCricketService": "./services/LearnCricketService.js",
+    "./types/learn-cricket": "./types/learn-cricket.d.ts"
+  }
+}

@@ -8,7 +8,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { getLearnCricketService } from '../services/LearnCricketService.js';
+import { getLearnCricketService } from '../services/LearnCricketCLIAdapter.js';
 
 export const learnCricketCommand = new Command('learn-cricket')
   .description('Test adaptive cricket learning questions in batch mode')

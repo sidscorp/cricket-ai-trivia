@@ -16,6 +16,8 @@
     "cli:search": "node cli/index.js search",
     "cli:perf": "node cli/index.js performance",
     "cli:speed": "node cli/index.js speed-test",
+    "cli:learn": "node cli/index.js learn-cricket",
+    "cli:learn-fast": "node cli/index.js learn-cricket-fast",
     "test:v2": "node cli/test-v2-pipeline.js",
     "test:filters": "node cli/test-enhanced-filters.js"
   },
