@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TriviaGame } from './src/components/TriviaGame';
 import { GameFilters, CricketEra, CricketCountry, QuestionStyle, GameMode } from './src/types/Question';
+import { LearnCricketScreen } from './src/screens/LearnCricketScreen';
 
 interface GameFiltersScreenProps {
   onStartGame: (filters: GameFilters) => void;
@@ -380,8 +381,8 @@ export default function App() {
     setCurrentScreen('game_filters');
   };
 
-  const handleTutorialMode = () => {
-    setCurrentScreen('tutorial');
+  const handleLearnCricketMode = () => {
+    setCurrentScreen('learn_cricket');
   };
 
   const handleStartGameWithFilters = (filters: GameFilters) => {
@@ -464,27 +465,6 @@ export default function App() {
     );
   }
 
-  if (currentScreen === 'tutorial') {
-    return (
-      <View style={styles.appContainer}>
-        <ProfileStatusBar 
-          profile={userProfile} 
-          gameStats={currentGameStats}
-          mode="game"
-          onProfilePress={handleProfilePress} 
-        />
-        <SafeAreaView style={styles.gameContent}>
-          <TriviaGame 
-            mode="tutorial" 
-            onExit={handleExitGame}
-            onUpdateStats={updateUserStats}
-            onUpdateGameStats={updateGameStats}
-            onGameStart={(totalQuestions, gameMode) => resetGameStats(totalQuestions, gameMode)}
-          />
-        </SafeAreaView>
-      </View>
-    );
-  }
 
   if (currentScreen === 'game_filters') {
     return (
@@ -499,6 +479,21 @@ export default function App() {
             onStartGame={handleStartGameWithFilters}
             onBack={() => setCurrentScreen('home')}
           />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (currentScreen === 'learn_cricket') {
+    return (
+      <View style={styles.appContainer}>
+        <ProfileStatusBar 
+          profile={userProfile} 
+          mode="lifetime"
+          onProfilePress={handleProfilePress} 
+        />
+        <SafeAreaView style={styles.gameContent}>
+          <LearnCricketScreen onExit={handleExitGame} />
         </SafeAreaView>
       </View>
     );
@@ -531,8 +526,8 @@ export default function App() {
             <Text style={styles.buttonText}>Start Game</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleTutorialMode}>
-            <Text style={styles.secondaryButtonText}>Cricket Tutorial</Text>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleLearnCricketMode}>
+            <Text style={styles.secondaryButtonText}>Learn Cricket</Text>
           </TouchableOpacity>
           
           <StatusBar style="light" />
@@ -697,6 +692,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     width: '80%',
     alignItems: 'center',
+    marginBottom: 15,
   },
   secondaryButtonText: {
     color: '#fff',

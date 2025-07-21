@@ -57,6 +57,8 @@ Return ONLY a JSON array with ${count} elements, each object:
 
 Now generate ${count} cricket trivia questions:`;
   }
+  
+  /**
    * Generate cricket trivia questions using Gemini AI
    */
   async generateQuestions(request: QuestionGenerationRequest): Promise<TriviaQuestion[]> {
