@@ -22,7 +22,7 @@ import { TimerBar } from '../components/cricket/TimerBar';
 import { useGameTimer } from '../hooks/useGameTimer';
 import { useGameStats } from '../hooks/useGameStats';
 import { createScoringService } from '../services/ScoringService';
-import { createAIQuestionService } from '../services/AIQuestionService';
+import { getLearnCricketUIService } from '../services/LearnCricketUIAdapter';
 import { getLearningContextService } from '../services/LearningContextService';
 import { TriviaQuestion } from '../types/Question';
 import { CricketGameState, CRICKET_CONSTANTS, BallResult } from '../types/Cricket';
@@ -70,7 +70,7 @@ export const LearnCricketScreen: React.FC<LearnCricketScreenProps> = ({ onExit }
   const timer = useGameTimer({ mode: 'countup' });
   const stats = useGameStats();
   const scoringService = useRef(createScoringService('cricket'));
-  const aiService = useRef(createAIQuestionService());
+  const aiService = useRef(getLearnCricketUIService());
   const learningContext = useRef(getLearningContextService());
   
   // Animation values
@@ -125,29 +125,17 @@ export const LearnCricketScreen: React.FC<LearnCricketScreenProps> = ({ onExit }
   const generateInitialQuestions = async () => {
     try {
       setIsTransitioning(true);
-      const progress = learningContext.current.getProgress();
-      const recommendations = learningContext.current.getAdaptiveRecommendations();
       
-      // Generate 3 questions to start
-      const initialQuestions = await aiService.current.generateAdaptiveQuestions(
-        {
-          category: 'tutorial',
-          difficulty: recommendations.suggestedDifficulty,
-          count: 3,
-        },
-        progress
+      // Generate 6 questions for the first over using shared service
+      const initialQuestions = await aiService.current.generateOverQuestions(
+        1, // overNumber
+        [], // previousQuestions
+        [], // previousAnswers
+        null // performance
       );
       
       setQuestions(initialQuestions);
       setIsTransitioning(false);
-      
-      // Pre-generate more questions for smooth gameplay
-      const contexts = [
-        { category: 'player_stories' as const, difficulty: recommendations.suggestedDifficulty, count: 2 },
-        { category: 'rules_formats' as const, difficulty: recommendations.suggestedDifficulty, count: 2 },
-        { category: 'legendary_moments' as const, difficulty: recommendations.suggestedDifficulty, count: 2 },
-      ];
-      aiService.current.preGenerateQuestions(contexts);
     } catch (error) {
       console.error('Failed to generate questions:', error);
       setIsTransitioning(false);
@@ -390,16 +378,25 @@ export const LearnCricketScreen: React.FC<LearnCricketScreenProps> = ({ onExit }
    */
   const generateMoreQuestions = async () => {
     try {
-      const progress = learningContext.current.getProgress();
-      const recommendations = learningContext.current.getAdaptiveRecommendations();
+      // Calculate performance from current over
+      const overQuestions = questions.slice(0, CRICKET_CONSTANTS.BALLS_PER_OVER);
+      const overAnswers = overQuestions.map((_, i) => {
+        // Get user's answers for performance calculation
+        // This is a simplified approach - you might need to track answers differently
+        return 0; // Placeholder - need to track actual answers
+      });
       
-      const newQuestions = await aiService.current.generateAdaptiveQuestions(
-        {
-          category: recommendations.focusTopics[0] as any || 'player_stories',
-          difficulty: recommendations.suggestedDifficulty,
-          count: 3,
-        },
-        progress
+      const performance = aiService.current.calculatePerformance(
+        overQuestions,
+        overAnswers
+      );
+      
+      // Generate questions for the second over
+      const newQuestions = await aiService.current.generateOverQuestions(
+        2, // overNumber
+        overQuestions, // previousQuestions
+        overAnswers, // previousAnswers
+        performance // performance from over 1
       );
       
       setQuestions(prev => [...prev, ...newQuestions]);
