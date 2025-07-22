@@ -5,7 +5,7 @@
  */
 
 import LearnCricketService from '../../shared/services/LearnCricketService';
-import { getOpenRouterService } from './OpenRouterService';
+import { getOpenRouterService } from '../../shared/services/OpenRouterService';
 import { TriviaQuestion } from '../types/Question';
 import { LearnCricketQuestion, PerformanceMetrics } from '../../shared/types/learn-cricket';
 

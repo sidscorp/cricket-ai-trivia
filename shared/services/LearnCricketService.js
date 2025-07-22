@@ -25,6 +25,13 @@ class LearnCricketService {
     // Model selection (can be overridden)
     this.model = options.model || getLearnCricketModel();
     
+    // Support fast mode
+    this.fastMode = options.fastMode || false;
+    if (this.fastMode && !options.model) {
+      // Use faster model for fast mode
+      this.model = 'openai/gpt-3.5-turbo';
+    }
+    
     // Use shared topics
     this.topics = CRICKET_TOPICS;
   }

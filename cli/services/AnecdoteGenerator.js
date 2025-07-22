@@ -6,7 +6,7 @@
  */
 
 import chalk from 'chalk';
-import { getOpenRouterService } from './OpenRouterService.js';
+import { getOpenRouterService } from '../../shared/services/OpenRouterService.js';
 import { config } from '../utils/config.js';
 import { getEnhancedFilterSystem } from '../utils/enhanced-filters.js';
 

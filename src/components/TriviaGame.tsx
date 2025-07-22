@@ -16,7 +16,7 @@ import {
   Alert,
 } from 'react-native';
 import { TriviaQuestion, QuestionCategory, DifficultyLevel, GameFilters } from '../types/Question';
-import { getGeminiService } from '../services/GeminiService';
+import { getGeminiService } from '../../shared/services/GeminiService';
 import { QuestionValidator } from '../utils/QuestionValidator';
 
 interface TriviaGameProps {

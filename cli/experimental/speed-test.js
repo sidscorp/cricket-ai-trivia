@@ -6,7 +6,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { V2PipelineOrchestrator } from './search-generate-v2.js';
+import { V2PipelineOrchestrator } from '../commands/search-generate.js';
 
 export const speedTestCommand = new Command('speed-test')
   .description('Test V2 pipeline speed with different optimization settings')

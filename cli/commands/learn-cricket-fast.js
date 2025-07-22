@@ -7,9 +7,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { getLearnCricketService } from '../services/LearnCricketCLIAdapter.js';
-import { getLearnCricketServiceWithModel } from '../services/LearnCricketCLIAdapterFast.js';
+import LearnCricketService from '../../shared/services/LearnCricketService.js';
+import { getOpenRouterService } from '../../shared/services/OpenRouterService.js';
 import { MODEL_SPECS } from '../../shared/config/ai-models.js';
+import { logger } from '../utils/logger.js';
 
 export const learnCricketFastCommand = new Command('learn-cricket-fast')
   .description('Compare speed of different Learn Cricket implementations')
@@ -25,7 +26,10 @@ export const learnCricketFastCommand = new Command('learn-cricket-fast')
       if (options.mode === 'original') {
         // Original implementation with Perplexity Sonar
         console.log(chalk.yellow('Using ORIGINAL implementation (Perplexity Sonar)...\n'));
-        const service = getLearnCricketService();
+        const service = new LearnCricketService({
+          logger: logger,
+          openRouterService: getOpenRouterService()
+        });
         
         const startTime = Date.now();
         questions = await service.generateOverQuestions({ overNumber: 1 });
@@ -34,7 +38,12 @@ export const learnCricketFastCommand = new Command('learn-cricket-fast')
       } else if (options.mode === 'parallel') {
         // Note: Parallel generation removed - single batch is faster
         console.log(chalk.yellow('PARALLEL mode deprecated - using FAST mode instead...\n'));
-        const service = getLearnCricketServiceWithModel('fast');
+        const service = new LearnCricketService({
+          logger: logger,
+          openRouterService: getOpenRouterService(),
+          fastMode: true,
+          model: 'openai/gpt-3.5-turbo'
+        });
         
         const startTime = Date.now();
         questions = await service.generateOverQuestions({ overNumber: 1 });
@@ -43,7 +52,12 @@ export const learnCricketFastCommand = new Command('learn-cricket-fast')
       } else {
         // Fast mode with GPT-3.5
         console.log(chalk.yellow('Using FAST mode (GPT-3.5 Turbo)...\n'));
-        const service = getLearnCricketServiceWithModel('fast');
+        const service = new LearnCricketService({
+          logger: logger,
+          openRouterService: getOpenRouterService(),
+          fastMode: true,
+          model: 'openai/gpt-3.5-turbo'
+        });
         
         const startTime = Date.now();
         questions = await service.generateOverQuestions({ 
@@ -89,7 +103,12 @@ export const learnCricketFastCommand = new Command('learn-cricket-fast')
           console.log(chalk.gray('Testing Llama 3.1 (free)...'));
           const freeStart = Date.now();
           try {
-            const freeService = getLearnCricketServiceWithModel('free');
+            const freeService = new LearnCricketService({
+              logger: logger,
+              openRouterService: getOpenRouterService(),
+              fastMode: true,
+              model: 'meta-llama/llama-3.1-8b-instruct:free'
+            });
             await freeService.generateOverQuestions({ overNumber: 1 });
             const freeTime = Date.now() - freeStart;
             console.log(chalk.green(`✓ Llama 3.1: ${freeTime}ms\n`));
@@ -101,7 +120,12 @@ export const learnCricketFastCommand = new Command('learn-cricket-fast')
           console.log(chalk.gray('Testing Claude 3 Haiku...'));
           const haikuStart = Date.now();
           try {
-            const balancedService = getLearnCricketServiceWithModel('balanced');
+            const balancedService = new LearnCricketService({
+              logger: logger,
+              openRouterService: getOpenRouterService(),
+              fastMode: true,
+              model: 'anthropic/claude-3-haiku'
+            });
             await balancedService.generateOverQuestions({ overNumber: 1 });
             const haikuTime = Date.now() - haikuStart;
             console.log(chalk.green(`✓ Claude Haiku: ${haikuTime}ms\n`));

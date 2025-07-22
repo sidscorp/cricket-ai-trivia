@@ -78,6 +78,15 @@ flowchart TD
 - **Cricket Context Verification**: Ensures proper terminology and authenticity
 - **Performance Monitoring**: 3-4 second generation targets with success tracking
 
+### 🎮 Game Modes
+- **Learn Cricket**: Interactive 2-over quiz format with adaptive AI
+  - 6 questions per over, cricket-style scoring
+  - Time-based scoring (6 runs for fast answers, dot ball for slow)
+  - Adaptive difficulty based on performance
+  - Fast mode with multiple AI model options
+- **Trivia Generation**: Web-powered question creation from current cricket content
+- **Tutorial Mode**: Guided introduction to cricket basics
+
 ### 🎯 Trivia Categories
 - **Legendary Moments**: Game-changing performances and historic matches
 - **Player Stories**: Career highlights and compelling personal narratives  
@@ -114,14 +123,14 @@ flowchart TD
 - **Live Generation**: Real-time question creation during gameplay
 
 ### CLI Testing Interface
-Seven specialized commands for comprehensive testing:
-- `search-generate`: Main intelligent pipeline (guarantees question count)
-- `grounded`: Enhanced storytelling with web verification
-- `generate`: Basic AI generation testing
-- `verify`: Web verification of cricket facts
-- `pipeline`: End-to-end workflow testing
-- `performance`: Benchmarking and optimization
+Comprehensive testing framework with specialized commands:
+- `learn-cricket`: Interactive cricket learning quiz with adaptive AI
+- `learn-cricket-fast`: Speed-optimized version with model selection
+- `search-generate`: Advanced two-phase pipeline for trivia generation
+- `verify`: Web verification of cricket facts using Google Search
+- `performance`: Benchmarking and optimization testing
 - `search`: Google Custom Search API testing
+- `speed-test`: Performance comparison of different configurations
 
 ### Developer Experience
 - **Comprehensive Documentation**: Complete architecture guide and CLI reference
@@ -154,8 +163,10 @@ cp .env.example .env
 # Start mobile app
 npm start
 
-# Test CLI pipeline
-npm run cli search-generate --questions 5
+# Test CLI commands
+npm run cli:learn          # Interactive cricket quiz
+npm run cli:questions      # Generate trivia questions
+npm run cli:search -- -q "cricket topic"  # Search test
 ```
 
 ### API Configuration
@@ -163,7 +174,52 @@ Create `.env` file with:
 ```
 EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_key
 GOOGLE_CUSTOM_SEARCH_API_KEY=your_search_key
-GOOGLE_CUSTOM_SEARCH_ENGINE_ID=your_engine_id
+GOOGLE_CUSTOM_SEARCH_CX=your_search_engine_id
+EXPO_PUBLIC_OPENROUTER_API_KEY=your_openrouter_key
+```
+
+## Available Commands
+
+### Mobile App
+```bash
+npm start          # Start Expo development server
+npm run android    # Run on Android device/emulator
+npm run ios        # Run on iOS simulator
+npm run web        # Run in web browser
+```
+
+### CLI Commands
+```bash
+# Interactive Learning Mode
+npm run cli:learn       # Play adaptive cricket quiz (2 overs, 6 questions each)
+npm run cli:learn-fast  # Speed-optimized quiz with model selection
+
+# Question Generation
+npm run cli:questions   # Generate trivia from web search (V2 pipeline)
+npm run cli:verify      # Verify cricket facts with web search
+
+# Testing & Performance
+npm run cli:perf        # Run performance benchmarks
+npm run cli:speed       # Compare speed optimizations
+npm run cli:search -- -q "search term"  # Test Google search
+
+# Help
+npm run cli:help        # Show all available commands
+```
+
+### Command Examples
+```bash
+# Generate 10 trivia questions about legendary moments
+npm run cli:questions -- -c legendary_moments -n 10
+
+# Verify a cricket fact
+npm run cli:verify -- -i "Kapil Dev's 175* at Tunbridge Wells"
+
+# Search for cricket content
+npm run cli:search -- -q "World Cup 2011 final"
+
+# Run performance tests
+npm run cli:perf -- --runs 5 --category player_stories
 ```
 
 ## Documentation
@@ -176,9 +232,19 @@ GOOGLE_CUSTOM_SEARCH_ENGINE_ID=your_engine_id
 ## Technology Stack
 
 - **Frontend**: React Native, Expo, TypeScript
-- **AI/ML**: Google Gemini AI, Custom validation algorithms
-- **APIs**: Google Custom Search, Gemini Generative AI
+- **AI/ML**: 
+  - Google Gemini AI (primary question generation)
+  - OpenRouter API (multi-model support: GPT-3.5, Claude, Perplexity)
+  - Custom validation algorithms
+- **APIs**: 
+  - Google Custom Search API
+  - Gemini Generative AI
+  - OpenRouter (Perplexity Sonar for web-aware generation)
 - **CLI**: Node.js, Commander.js, Chalk, Inquirer
+- **Architecture**: 
+  - Shared services pattern for cross-platform code reuse
+  - Platform-specific adapters for CLI and UI
+  - Centralized configuration and constants
 - **Development**: TypeScript, ESLint, Git workflow
 
 ## Current Status

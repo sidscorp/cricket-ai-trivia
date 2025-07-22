@@ -1,8 +1,13 @@
 /**
- * Gemini Service for CLI
+ * Unified Gemini Service for Cricket Trivia
  * 
- * JavaScript implementation that provides the same interface as the TypeScript GeminiService.
+ * Single implementation for both CLI and UI environments
+ * Handles integration with Google's Gemini API for generating
+ * contextual cricket trivia questions with explanations.
  */
+
+import { AI_MODELS } from '../config/ai-models.js';
+import { isCliEnvironment } from '../config/constants.js';
 
 class GeminiService {
   constructor(apiKey) {
@@ -17,7 +22,7 @@ class GeminiService {
     try {
       const prompt = this.buildPrompt(request);
       
-      // Generate dynamic configuration based on difficulty and category for variety
+      // Generate dynamic configuration based on difficulty and category
       const dynamicConfig = this.getDynamicConfigForRequest(request);
       
       const response = await this.callGeminiAPI(prompt, dynamicConfig);
@@ -129,16 +134,6 @@ ${styleContext}
 3. PIVOTAL MOMENT: "Which [player/team/decision] [dramatic action]?"
 4. IMPACT: Explanation of why this became cricket legend
 
-EPIC EXAMPLES:
-
-LEGENDARY: "In the dying moments of the 2019 World Cup final at Lord's, with scores tied and England needing a boundary to win, which freak incident involving the ball hitting a diving Ben Stokes' bat gifted England the crucial extra runs that changed cricket history?"
-
-BORING: "In which year was the ICC formed?"
-
-LEGENDARY: "During the infamous 'Sandpaper Gate' scandal that rocked Australian cricket, which tearful captain's press conference apology became one of the most watched moments in cricket history, ending his leadership career?"
-
-BORING: "Who was the ICC Chairman in 2018?"
-
 FORMAT REQUIREMENTS:
 Return ONLY a JSON array with this exact structure:
 [
@@ -177,45 +172,20 @@ You are a master cricket storyteller specializing in dramatic, factual incidents
 3. **DRAMATIC QUESTION**: Focus on the pivotal moment, decision, or twist
 4. **EMOTIONAL IMPACT**: Capture why this moment was shocking/thrilling/historic
 
-🎯 DRAMATIC STORYTELLING:
-Create questions about specific cricket incidents with maximum tension and emotion. Focus on pivotal moments, controversial decisions, record-breaking performances, and last-ball drama.
-
 FORMAT - CRITICAL:
 Return ONLY valid JSON. No markdown, comments, or extra text. Keep all strings SHORT and on single lines.
 Use brief, concise language. Limit question text to 150 characters max.
 Limit explanation text to 100 characters max.
-(Tests knowledge of actual event and rule)
-
-BAD: "According to the article, what was considered the most significant moment in the match?"
-(Tests article comprehension, not cricket knowledge)
-
-GOOD: "Which bowler took 6 wickets for 23 runs against Australia at Melbourne in 2020, achieving the best bowling figures for India in that series?"
-(Tests specific performance fact)
-
-BAD: "What performance did the article describe as 'legendary'?"
-(Tests article opinion, not cricket fact)
 
 ARTICLES FOR FACT EXTRACTION:
 ${articleTexts}
-
-FACT EXTRACTION PROCESS:
-1. Read each article and identify concrete cricket events and facts
-2. For each fact, create context around the cricket situation
-3. Form questions that test knowledge of the actual event
-4. Ensure answers are verifiable cricket facts, not article interpretations
-
-SOURCE CITATION:
-- Use exact article URL that contained the fact
-- Questions test cricket knowledge, sourced from article information
-
-EXAMPLES OF PROPER FACTUAL QUESTIONS:
 
 Return JSON array with ${count} elements:
 [{"question":"Dramatic setup + factual cricket question","options":["A","B","C","D"],"correctAnswer":0,"explanation":"Brief explanation","source":"article-url"}]`;
   }
 
   /**
-   * Validate generated questions against source articles for accuracy and grounding
+   * Validate generated questions against source articles for accuracy
    */
   async validateQuestionsAgainstArticles(questions, articles) {
     try {
@@ -258,11 +228,6 @@ C = Acceptable but could be more specific
 For each question, respond with:
 ACCEPT-A, ACCEPT-B, ACCEPT-C, or REJECT
 
-Example:
-1. ACCEPT-A
-2. REJECT
-3. ACCEPT-B
-
 Validate and rank each question now:`;
 
       const validationResponse = await this.callGeminiAPI(validationPrompt, {
@@ -292,7 +257,7 @@ Validate and rank each question now:`;
         return { ...question, quality };
       }).filter(q => q !== null);
 
-      // Sort by quality (A > B > C) for better selection
+      // Sort by quality (A > B > C)
       rankedQuestions.sort((a, b) => {
         const qualityOrder = { 'A': 3, 'B': 2, 'C': 1 };
         return qualityOrder[b.quality] - qualityOrder[a.quality];
@@ -309,42 +274,10 @@ Validate and rank each question now:`;
   }
 
   /**
-   * Generate dynamic configuration parameters for varied question generation
-   */
-  getDynamicGenerationConfig() {
-    // Array of different configuration profiles for variety
-    const configProfiles = [
-      // Standard storytelling profile
-      { temperature: 0.7, topP: 0.8, name: 'balanced' },
-      
-      // Creative storytelling profile  
-      { temperature: 0.8, topP: 0.9, name: 'creative' },
-      
-      // Focused narrative profile
-      { temperature: 0.6, topP: 0.7, name: 'focused' },
-      
-      // Dynamic storytelling profile
-      { temperature: 0.75, topP: 0.85, name: 'dynamic' },
-      
-      // Engaging narrative profile
-      { temperature: 0.72, topP: 0.82, name: 'engaging' }
-    ];
-    
-    // Randomly select a configuration profile
-    const profile = configProfiles[Math.floor(Math.random() * configProfiles.length)];
-    
-    return {
-      temperature: profile.temperature,
-      topP: profile.topP,
-      maxOutputTokens: 4096,
-    };
-  }
-
-  /**
-   * Make HTTP request to Gemini API with dynamic configuration
+   * Make HTTP request to Gemini API
    */
   async callGeminiAPI(prompt, generationConfig = null) {
-    // Dynamic generation config based on request parameters
+    // Use dynamic generation config if not provided
     const config = generationConfig || this.getDynamicGenerationConfig();
     
     const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
@@ -368,18 +301,73 @@ Validate and rank each question now:`;
   }
 
   /**
+   * Generate dynamic configuration for variety
+   */
+  getDynamicGenerationConfig() {
+    // Array of different configuration profiles for variety
+    const configProfiles = [
+      { temperature: 0.7, topP: 0.8, name: 'balanced' },
+      { temperature: 0.8, topP: 0.9, name: 'creative' },
+      { temperature: 0.6, topP: 0.7, name: 'focused' },
+      { temperature: 0.75, topP: 0.85, name: 'dynamic' },
+      { temperature: 0.72, topP: 0.82, name: 'engaging' }
+    ];
+    
+    // Randomly select a configuration profile
+    const profile = configProfiles[Math.floor(Math.random() * configProfiles.length)];
+    
+    return {
+      temperature: profile.temperature,
+      topP: profile.topP,
+      maxOutputTokens: 4096,
+    };
+  }
+
+  /**
+   * Parse Gemini response and convert to question objects
+   */
+  parseGeminiResponse(response, request) {
+    try {
+      const content = response.candidates[0]?.content?.parts[0]?.text;
+      if (!content) {
+        throw new Error('No content received from Gemini');
+      }
+
+      // Progressive JSON extraction - handle partial/truncated responses
+      const contextArticles = request.contextArticles || [];
+      const extractedQuestions = this.extractValidQuestionsFromContent(content, contextArticles);
+      
+      if (extractedQuestions.length === 0) {
+        throw new Error('No valid questions found in response');
+      }
+
+      return extractedQuestions.map((q, index) => ({
+        id: `${Date.now()}-${index}`,
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+        source: q.source || 'Generated from web sources',
+        category: request.category || 'legendary_moments',
+        difficulty: request.difficulty || 'medium',
+        generatedAt: new Date(),
+      }));
+    } catch (error) {
+      console.error('Error parsing Gemini response:', error);
+      throw new Error('Failed to parse AI response. Please try again.');
+    }
+  }
+
+  /**
    * Extract valid question objects from potentially truncated content
    */
   extractValidQuestionsFromContent(content, contextArticles = []) {
     // First try standard JSON extraction
     try {
       let jsonText = this.extractJSONFromContent(content);
-      console.log(`Standard extraction found JSON: ${jsonText.substring(0, 100)}...`);
       const result = JSON.parse(jsonText);
-      console.log(`✅ Standard extraction successful: ${result.length} questions`);
       return result;
     } catch (error) {
-      console.log(`❌ Standard extraction failed: ${error.message}`);
       // If standard parsing fails, try progressive extraction
       return this.progressiveQuestionExtraction(content, contextArticles);
     }
@@ -389,10 +377,10 @@ Validate and rank each question now:`;
    * Extract JSON text from content, handling markdown and formatting
    */
   extractJSONFromContent(content) {
-    // Clean the content first to remove control characters
+    // Clean the content first
     const cleanedContent = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
     
-    // First try to extract from markdown code blocks
+    // Try to extract from markdown code blocks
     let markdownMatch = cleanedContent.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
     if (markdownMatch) {
       return this.cleanJSONText(markdownMatch[1]);
@@ -412,7 +400,7 @@ Validate and rank each question now:`;
    */
   cleanJSONText(jsonText) {
     return jsonText
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')  // Remove control chars first
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')  // Remove control chars
       .replace(/\/\/.*$/gm, '')  // Remove line comments
       .replace(/\/\*[\s\S]*?\*\//g, '')  // Remove block comments
       .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
@@ -430,15 +418,13 @@ Validate and rank each question now:`;
   progressiveQuestionExtraction(content, contextArticles = []) {
     const validQuestions = [];
     
-    // Try to extract individual question objects, even if the array is incomplete
+    // Try to extract individual question objects
     const questionMatches = this.findQuestionObjectsInText(content);
     
     for (const questionMatch of questionMatches) {
       try {
-        // Try to complete the question object if it's truncated
+        // Try to complete the question object if truncated
         const completedQuestion = this.completeQuestionObject(questionMatch, contextArticles);
-        console.log(`Attempting to complete question: ${questionMatch.substring(0, 100)}...`);
-        console.log(`Completed result: ${completedQuestion ? completedQuestion.substring(0, 100) + '...' : 'null'}`);
         
         if (completedQuestion) {
           const cleanedQuestion = this.cleanJSONText(completedQuestion);
@@ -448,13 +434,10 @@ Validate and rank each question now:`;
             // Validate the question has required fields
             if (this.validateQuestionObject(questionObj)) {
               validQuestions.push(questionObj);
-              console.log(`✅ Successfully extracted valid question`);
-            } else {
-              console.log(`❌ Question validation failed`);
             }
           } catch (parseError) {
-            console.log(`❌ JSON parse failed: ${parseError.message}`);
-            console.log(`Failed to parse: ${cleanedQuestion.substring(0, 200)}...`);
+            // Skip invalid question objects
+            continue;
           }
         }
       } catch (error) {
@@ -467,7 +450,7 @@ Validate and rank each question now:`;
   }
 
   /**
-   * Find potential question objects in text, including incomplete ones
+   * Find potential question objects in text
    */
   findQuestionObjectsInText(content) {
     const questions = [];
@@ -475,7 +458,7 @@ Validate and rank each question now:`;
     // Clean content first
     const cleanedContent = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
     
-    // Pattern to find question objects (including incomplete ones)
+    // Pattern to find question objects
     const questionPattern = /\{\s*"question"\s*:\s*"[^"]*"/g;
     let match;
     
@@ -506,7 +489,7 @@ Validate and rank each question now:`;
    * Try to complete a truncated question object
    */
   completeQuestionObject(questionText, contextArticles = []) {
-    // Simple approach: if we have the essential fields, just close the object with minimal defaults
+    // Check if we have the essential fields
     const hasQuestion = /"question"\s*:\s*"[^"]*"/.test(questionText);
     const hasOptions = /"options"\s*:\s*\[/.test(questionText);
     const hasCorrectAnswer = /"correctAnswer"\s*:\s*\d+/.test(questionText);
@@ -521,7 +504,7 @@ Validate and rank each question now:`;
       // Find the best matching article source
       const bestSource = this.findBestSourceForQuestion(questionContent, contextArticles);
       
-      // If we have correctAnswer, that's usually enough - just add defaults for the rest
+      // If we have correctAnswer, add defaults for missing fields
       const correctAnswerMatch = completed.match(/"correctAnswer"\s*:\s*\d+/);
       if (correctAnswerMatch) {
         const endOfCorrectAnswer = correctAnswerMatch.index + correctAnswerMatch[0].length;
@@ -531,21 +514,11 @@ Validate and rank each question now:`;
       }
     }
     
-    return null; // Can't complete this question
+    return null;
   }
 
   /**
-   * Check if a JSON text represents a complete question object
-   */
-  isCompleteQuestionObject(jsonText) {
-    const requiredFields = ['question', 'options', 'correctAnswer'];
-    return requiredFields.every(field => 
-      new RegExp(`"${field}"\\s*:`).test(jsonText)
-    ) && jsonText.includes('}'); // Must have closing brace
-  }
-
-  /**
-   * Find the best source URL for a question based on content similarity
+   * Find the best source URL for a question
    */
   findBestSourceForQuestion(questionContent, contextArticles) {
     if (!contextArticles || contextArticles.length === 0) {
@@ -557,7 +530,7 @@ Validate and rank each question now:`;
       return contextArticles[0].link || 'Generated from web sources';
     }
     
-    // Score articles based on keyword overlap with question
+    // Score articles based on keyword overlap
     const questionWords = questionContent.toLowerCase().split(/\s+/).filter(word => word.length > 3);
     let bestMatch = contextArticles[0];
     let bestScore = 0;
@@ -588,54 +561,7 @@ Validate and rank each question now:`;
   }
 
   /**
-   * Parse Gemini response and convert to question objects
-   */
-  parseGeminiResponse(response, request) {
-    let content, jsonMatch, jsonText;
-    
-    try {
-      content = response.candidates[0]?.content?.parts[0]?.text;
-      if (!content) {
-        throw new Error('No content received from Gemini');
-      }
-
-      // Progressive JSON extraction - handle partial/truncated responses
-      const contextArticles = request.contextArticles || [];
-      const extractedQuestions = this.extractValidQuestionsFromContent(content, contextArticles);
-      
-      console.log(`Found ${extractedQuestions.length} valid questions from progressive extraction`);
-      
-      if (extractedQuestions.length === 0) {
-        console.log('Progressive extraction debug: searching for question patterns...');
-        const questionMatches = content.match(/\{\s*"question"/g);
-        console.log(`Found ${questionMatches ? questionMatches.length : 0} potential question starts`);
-        throw new Error('No valid questions found in response');
-      }
-
-      const rawQuestions = extractedQuestions;
-      
-      return rawQuestions.map((q, index) => ({
-        id: `${Date.now()}-${index}`,
-        question: q.question,
-        options: q.options,
-        correctAnswer: q.correctAnswer,
-        explanation: q.explanation,
-        source: q.source || 'Generated from web sources',
-        category: request.category || 'legendary_moments',
-        difficulty: request.difficulty || 'medium',
-        generatedAt: new Date(),
-      }));
-    } catch (error) {
-      console.error('Error parsing Gemini response:', error);
-      if (content) console.error('Raw response content (first 500 chars):', content.substring(0, 500));
-      if (jsonMatch) console.error('JSON match found:', jsonMatch[0].substring(0, 200));
-      if (jsonText) console.error('Cleaned JSON:', jsonText.substring(0, 200));
-      throw new Error('Failed to parse AI response. Please try again.');
-    }
-  }
-
-  /**
-   * Get category-specific context for question generation
+   * Get category-specific context
    */
   getCategoryContext(category) {
     const contexts = {
@@ -697,7 +623,7 @@ Validate and rank each question now:`;
   }
 
   /**
-   * Get difficulty-specific guidance for question generation
+   * Get difficulty-specific guidance
    */
   getDifficultyGuidance(difficulty) {
     const guidance = {
@@ -709,7 +635,7 @@ Validate and rank each question now:`;
   }
 
   /**
-   * Get era-specific context for question generation
+   * Get era-specific context
    */
   getEraContext(era) {
     if (!era || era === 'all_eras') {
@@ -730,7 +656,7 @@ Validate and rank each question now:`;
   }
 
   /**
-   * Get country-specific context for question generation
+   * Get country-specific context
    */
   getCountryContext(countries) {
     if (!countries || countries.includes('all_countries') || countries.length === 0) {
@@ -765,7 +691,7 @@ Validate and rank each question now:`;
   }
 
   /**
-   * Get question style-specific context for question generation
+   * Get question style-specific context
    */
   getQuestionStyleContext(questionStyle) {
     if (!questionStyle || questionStyle === 'facts_opinions') {
@@ -792,7 +718,7 @@ PREFER objective language such as:
   }
 
   /**
-   * Build tutorial-specific prompt for cricket newcomers
+   * Build tutorial-specific prompt
    */
   buildTutorialPrompt(count) {
     const tutorialTopics = [
@@ -848,6 +774,7 @@ let geminiServiceInstance = null;
  */
 export const getGeminiService = () => {
   if (!geminiServiceInstance) {
+    // Support both CLI and UI environments
     const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('EXPO_PUBLIC_GEMINI_API_KEY or GEMINI_API_KEY environment variable is required');
@@ -858,7 +785,7 @@ export const getGeminiService = () => {
 };
 
 /**
- * CLI-specific wrapper methods for common operations
+ * Platform-specific wrapper for backward compatibility
  */
 export class CLIGeminiService {
   constructor() {
@@ -866,7 +793,7 @@ export class CLIGeminiService {
   }
 
   /**
-   * Generate questions from article context (for search-generate command)
+   * Generate questions from article context
    */
   async generateQuestions(options) {
     const { contextArticles, count } = options;

@@ -6,7 +6,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { CLIGeminiService } from '../services/GeminiService.js';
+import { CLIGeminiService } from '../../shared/services/GeminiService.js';
 import { GoogleSearchService } from '../services/google-search.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 import { URLResolver } from '../utils/url-resolver.js';

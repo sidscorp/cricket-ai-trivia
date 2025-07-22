@@ -8,7 +8,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { getLearnCricketService } from '../services/LearnCricketCLIAdapter.js';
+import LearnCricketService from '../../shared/services/LearnCricketService.js';
+import { getOpenRouterService } from '../../shared/services/OpenRouterService.js';
+import { logger } from '../utils/logger.js';
 
 export const learnCricketCommand = new Command('learn-cricket')
   .description('Test adaptive cricket learning questions in batch mode')
@@ -19,7 +21,10 @@ export const learnCricketCommand = new Command('learn-cricket')
     console.log(chalk.cyan('You\'ll see 6 questions per over, answer all at once.\n'));
 
     try {
-      const service = getLearnCricketService();
+      const service = new LearnCricketService({
+        logger: logger,
+        openRouterService: getOpenRouterService()
+      });
       let allQuestions = [];
       let allAnswers = [];
 
