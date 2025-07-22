@@ -105,7 +105,13 @@ class OpenRouterService {
         max_tokens: 2000
       });
       
+      if (!response.choices || !response.choices[0] || !response.choices[0].message) {
+        this.log('red', 'Invalid response structure:', JSON.stringify(response));
+        throw new Error('Invalid response structure from OpenRouter');
+      }
+      
       const content = response.choices[0].message.content;
+      this.log('blue', 'Response content:', content.substring(0, 200) + '...');
       const questions = this.parseQuestionResponse(content);
       
       // Filter to requested count
@@ -231,7 +237,11 @@ Return a JSON array with this structure:
         max_tokens: 4000
       });
       
-      return this.parseQuestionResponse(response);
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No content in response');
+      }
+      return this.parseQuestionResponse(content);
     } catch (error) {
       console.error('Error generating questions:', error);
       throw new Error('Failed to generate questions via OpenRouter');
@@ -367,9 +377,9 @@ Requirements: 4 plausible options, test specific knowledge, maintain source attr
   /**
    * Parse question response from API
    */
-  parseQuestionResponse(response) {
+  parseQuestionResponse(content) {
     try {
-      const content = response.choices[0]?.message?.content;
+      // Content is already extracted and passed directly
       if (!content) {
         throw new Error('No content in API response');
       }
@@ -422,11 +432,18 @@ Requirements: 4 plausible options, test specific knowledge, maintain source attr
   extractJSONFromContent(content) {
     let result = null;
     
-    // Strategy 1: Look for JSON array with brackets
-    let jsonMatch = content.match(/\[[\s\S]*?\]/);
+    // Strategy 1: Look for JSON array with brackets (handle content before JSON)
+    let jsonMatch = content.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       try {
-        result = JSON.parse(jsonMatch[0]);
+        // Clean the JSON string before parsing
+        let jsonStr = jsonMatch[0];
+        // Remove any trailing content after the last ]
+        const lastBracketIndex = jsonStr.lastIndexOf(']');
+        if (lastBracketIndex !== -1) {
+          jsonStr = jsonStr.substring(0, lastBracketIndex + 1);
+        }
+        result = JSON.parse(jsonStr);
         if (result) return result;
       } catch (e) {
         this.log('yellow', '⚠️ Strategy 1 failed, trying strategy 2...');
@@ -454,12 +471,44 @@ Requirements: 4 plausible options, test specific knowledge, maintain source attr
         result = JSON.parse(jsonStr);
         if (result) return result;
       } catch (e) {
-        this.log('red', '❌ All JSON parsing strategies failed');
-        throw new Error(`No valid JSON found. Content preview: ${content.substring(0, 200)}...`);
+        this.log('yellow', '⚠️ Strategy 3 failed, trying strategy 4...');
       }
     }
     
-    throw new Error('No JSON structure found in response');
+    // Strategy 4: Try to parse numbered list format
+    const numberedListMatch = content.match(/\d+\.\s+[^?]+\?[\s\S]+?(?=\d+\.|$)/g);
+    if (numberedListMatch && numberedListMatch.length > 0) {
+      try {
+        const questions = [];
+        for (const match of numberedListMatch) {
+          // Extract question parts from numbered format
+          const questionMatch = match.match(/\d+\.\s+([^?]+\?)/);
+          const optionsMatch = match.match(/[A-D]\.\s+([^\n]+)/g);
+          const answerMatch = match.match(/Correct Answer:\s*([A-D])/i);
+          const explanationMatch = match.match(/Explanation:\s*([^]+?)(?=Source:|$)/i);
+          
+          if (questionMatch && optionsMatch && optionsMatch.length === 4) {
+            questions.push({
+              question: questionMatch[1].trim(),
+              options: optionsMatch.map(opt => opt.replace(/^[A-D]\.\s*/, '').trim()),
+              correctAnswer: answerMatch ? answerMatch[1].charCodeAt(0) - 65 : 0,
+              explanation: explanationMatch ? explanationMatch[1].trim() : '',
+              category: 'general',
+              difficulty: 'medium'
+            });
+          }
+        }
+        if (questions.length > 0) {
+          this.log('yellow', `📝 Parsed ${questions.length} questions from numbered format`);
+          return questions;
+        }
+      } catch (e) {
+        this.log('yellow', '⚠️ Strategy 4 failed');
+      }
+    }
+    
+    this.log('red', '❌ All JSON parsing strategies failed');
+    throw new Error(`No valid JSON found. Content preview: ${content.substring(0, 200)}...`);
   }
 
   /**

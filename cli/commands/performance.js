@@ -122,6 +122,12 @@ async function runPerformanceTest(options) {
   }
 
   console.log(chalk.cyan(' Test complete!'));
+  
+  // Debug: Show test results
+  console.log(chalk.gray(`\nDebug - Test results: ${testResults.length} tests`));
+  testResults.forEach((r, i) => {
+    console.log(chalk.gray(`  Test ${i + 1}: ${r.success ? '✓' : '✗'} ${r.duration ? r.duration.toFixed(0) + 'ms' : 'N/A'}`));
+  });
 
   return analyzePerformanceResults(testResults, target, options);
 }
@@ -203,6 +209,8 @@ function analyzePerformanceResults(results, target, options) {
   const successful = results.filter(r => r.success);
   const failed = results.filter(r => !r.success);
   
+  console.log(chalk.gray(`\nDebug - Analyzing: ${successful.length} successful, ${failed.length} failed`));
+  
   if (successful.length === 0) {
     return {
       success: false,
@@ -215,6 +223,7 @@ function analyzePerformanceResults(results, target, options) {
   const stats = calculateStatistics(durations);
   
   const performance = {
+    success: true,  // Add this!
     component: options.component,
     pipelineType: options.legacy ? 'legacy' : 'grounded',
     totalTests: results.length,
@@ -293,7 +302,7 @@ function displayPerformanceResults(results, target) {
   
   // Performance metrics
   console.log(chalk.blue('\n⏱️  Timing Statistics:'));
-  console.log(`   📊 Mean: ${getTimeColor(stats.mean, target)}${stats.mean.toFixed(0)}ms${chalk.reset()}`);
+  console.log(`   📊 Mean: ${getTimeColor(stats.mean, target)(stats.mean.toFixed(0) + 'ms')}`);
   console.log(`   📈 Median: ${chalk.cyan(stats.median.toFixed(0))}ms`);
   console.log(`   📉 Min: ${chalk.green(stats.min.toFixed(0))}ms`);
   console.log(`   📈 Max: ${chalk.red(stats.max.toFixed(0))}ms`);
@@ -301,15 +310,15 @@ function displayPerformanceResults(results, target) {
   
   // Percentiles
   console.log(chalk.blue('\n📈 Percentiles:'));
-  console.log(`   🎯 95th: ${getTimeColor(stats.p95, target)}${stats.p95.toFixed(0)}ms${chalk.reset()}`);
-  console.log(`   🎯 99th: ${getTimeColor(stats.p99, target)}${stats.p99.toFixed(0)}ms${chalk.reset()}`);
+  console.log(`   🎯 95th: ${getTimeColor(stats.p95, target)(stats.p95.toFixed(0) + 'ms')}`);
+  console.log(`   🎯 99th: ${getTimeColor(stats.p99, target)(stats.p99.toFixed(0) + 'ms')}`);
   
   // Target comparison
   console.log(chalk.blue('\n🎯 Target Analysis:'));
   console.log(`   🎯 Target: ${chalk.cyan(target)}ms`);
-  console.log(`   📊 Actual: ${getTimeColor(stats.mean, target)}${stats.mean.toFixed(0)}ms${chalk.reset()}`);
-  console.log(`   📈 Difference: ${getDifferenceColor(stats.mean, target)}${(stats.mean - target).toFixed(0)}ms${chalk.reset()}`);
-  console.log(`   🏆 Grade: ${getGradeColor(grade)}${grade.toUpperCase()}${chalk.reset()}`);
+  console.log(`   📊 Actual: ${getTimeColor(stats.mean, target)(stats.mean.toFixed(0) + 'ms')}`);
+  console.log(`   📈 Difference: ${getDifferenceColor(stats.mean, target)((stats.mean - target).toFixed(0) + 'ms')}`);
+  console.log(`   🏆 Grade: ${getGradeColor(grade)(grade.toUpperCase())}`);
   
   // Performance assessment
   console.log(chalk.blue('\n💡 Assessment:'));
@@ -342,12 +351,12 @@ function displayPerformanceResults(results, target) {
   if (!results.meetsTarget) {
     console.log(`   ⚡ ${chalk.yellow('Performance optimizations:')}`);
     if (results.pipelineType === 'grounded') {
-      console.log(`      • Reduce Gemini model temperature`);
+      console.log(`      • Reduce model temperature`);
       console.log(`      • Limit grounding search scope`);
       console.log(`      • Optimize URL resolution process`);
       console.log(`      • Use faster model variants`);
     } else {
-      console.log(`      • Reduce Gemini model temperature`);
+      console.log(`      • Reduce model temperature`);
       console.log(`      • Limit search result count`);
       console.log(`      • Implement request caching`);
       console.log(`      • Use faster model variants`);

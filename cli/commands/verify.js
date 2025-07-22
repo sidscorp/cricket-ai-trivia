@@ -191,7 +191,7 @@ function displayVerificationResults(incident, verification, searchResults, metri
   console.log(chalk.blue('═══════════════════════'));
   
   console.log(`\n${statusIcon} Status: ${statusColor.bold(statusText)}`);
-  console.log(`🎯 Confidence: ${getConfidenceColor(verification.confidence)}${verification.confidence}%${chalk.reset()}`);
+  console.log(`🎯 Confidence: ${getConfidenceColor(verification.confidence)(`${verification.confidence}%`)}`);
   console.log(`💭 Reason: ${chalk.gray(verification.reason)}`);
   console.log(`📊 Total Results: ${chalk.cyan(verification.totalResults || 0)}`);
 
