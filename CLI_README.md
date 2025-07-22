@@ -1,6 +1,6 @@
 # 🏏 Cricket Trivia CLI Test Tool
 
-A command-line interface for testing the AI-powered cricket question generation pipeline with Google Custom Search verification.
+A command-line interface for testing the AI-powered cricket question generation pipeline with web search capabilities.
 
 ## 🚀 Quick Start
 
@@ -22,328 +22,183 @@ A command-line interface for testing the AI-powered cricket question generation 
 
 ## 🔑 Required API Keys
 
-### Gemini AI API Key (Required for V1)
-1. Go to [Google AI Studio](https://aistudio.google.com/)
-2. Create a new API key
-3. Add to `.env` as `EXPO_PUBLIC_GEMINI_API_KEY`
+### OpenRouter API Key (Required)
+1. Go to [OpenRouter](https://openrouter.ai/)
+2. Create an account and get API key
+3. Add to `.env` as `EXPO_PUBLIC_OPENROUTER_API_KEY`
+4. Provides access to Perplexity Sonar, Claude, GPT-4, and other models
 
-### Google Custom Search API (Required for V1)
+### Google Custom Search API (Optional - for verification features)
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Enable Custom Search JSON API
 3. Create credentials (API Key)
 4. Add to `.env` as `GOOGLE_CUSTOM_SEARCH_API_KEY`
 
-### Google Custom Search Engine (Required for V1)
+### Google Custom Search Engine (Optional - for verification features)
 1. Go to [Programmable Search Engine](https://programmablesearchengine.google.com/)
 2. Create a new search engine
 3. Configure to search cricket websites (espncricinfo.com, cricbuzz.com, etc.)
-4. Get the Search Engine ID and add to `.env` as `GOOGLE_CUSTOM_SEARCH_ENGINE_ID`
-
-### OpenRouter API Key (Required for V2)
-1. Go to [OpenRouter](https://openrouter.ai/)
-2. Create an account and get API key
-3. Add to `.env` as `OPENROUTER_API_KEY`
-4. Provides access to Perplexity Sonar, Claude, GPT-4, and other models
+4. Get the Search Engine ID and add to `.env` as `GOOGLE_CUSTOM_SEARCH_CX`
 
 ## 📋 Available Commands
 
-### 🎯 search-generate - V1 Production Command (Gemini)
-**Google Custom Search + Gemini AI pipeline**
+### 🎯 search-generate - Main Question Generation Pipeline
+**Two-phase pipeline: Web search → anecdote generation → question creation**
 
 ```bash
-# Generate 5 guaranteed high-quality questions
-npm run cli search-generate --questions 5
+# Generate questions using default settings
+npm run cli:questions
 
 # Generate with specific filters
-npm run cli search-generate --questions 3 --era modern_era --country india
+npm run cli:questions -- --era modern_era --countries india --anecdotes 5 --questions 8
 
-# Generate with different difficulty
-npm run cli search-generate --questions 5 --difficulty hard
+# Use specific models
+npm run cli:questions -- --search-model perplexitySonarPro --creative-model claude3Opus
 ```
 
 **Features:**
-- ✅ **Guaranteed Question Count**: Always delivers the requested number of questions
-- 🔍 **Adaptive Article Fetching**: Automatically scales from 15-50 articles based on quality
-- 📊 **3x Over-Generation**: Creates more questions than needed and selects the best
-- 🎯 **A/B/C Quality Validation**: Multi-layer quality ranking system
-- 🌐 **Source Diversification**: Prevents content clustering from same sources
+- 🚀 **Parallel Processing**: Generates anecdotes and questions in parallel batches
+- 🔍 **Web-Aware Search**: Uses Perplexity models with real-time web access
+- 📊 **Quality Filtering**: Automatic quality scoring and filtering
+- 🎯 **Multi-Model Support**: Choose from various models for different phases
+- 🌐 **Source Attribution**: Includes web sources for fact-checking
 
 **Options:**
-- `--questions <number>`: Number of questions to generate (required)
-- `--era <era>`: Cricket era filter
-- `--country <country>`: Country filter  
-- `--difficulty <difficulty>`: Difficulty level
+- `-e, --era <era>`: Cricket era filter (default: "all_eras")
+- `-c, --countries <csv>`: Comma-separated country filters
+- `-g, --category <category>`: Question category
+- `-a, --anecdotes <num>`: Number of anecdotes to generate (default: 10)
+- `-q, --questions <num>`: Target number of questions
+- `--search-model <model>`: Search model override
+- `--creative-model <model>`: Creative model override
 - `--json`: Output results as JSON
 
-### 🚀 search-generate-v2 - V2 Production Command (OpenRouter) ⚡ SPEED OPTIMIZED
-**Advanced two-phase pipeline: Perplexity web search → anecdote generation → question creation with parallel processing**
+### 🏃 speed-test - Pipeline Performance Testing
+**Test pipeline speed with different optimization settings**
 
 ```bash
-# Generate questions using V2 pipeline
-npm run cli:questions-v2 --era modern_era --countries india --anecdotes 5 --questions 8
+# Compare serial vs parallel performance
+npm run cli:speed -- --compare
 
-# Advanced usage with model selection
-npm run cli:questions-v2 \
-  --era contemporary \
-  --countries india,australia \
-  --category legendary_moments \
-  --anecdotes 10 \
-  --questions 15 \
-  --search-model perplexitySonarPro \
-  --creative-model claude3Opus \
-  --show-anecdotes
+# Test with fast models
+npm run cli:speed -- --fast-models
 
-# Quick test with debug mode
-npm run cli:questions-v2 --anecdotes 3 --questions 5 --debug
+# Custom test configuration
+npm run cli:speed -- -c 3 -a 5 -q 8
 ```
 
-**Features:**
-- 🔍 **Phase 1**: Perplexity Sonar generates cricket anecdotes with web search (parallel batches)
-- ✍️ **Phase 2**: Claude/GPT-4 transforms anecdotes into trivia questions (parallel processing)
-- ⚡ **Speed Optimizations**: 3x faster via parallel processing + optimized prompts
-- 🎯 **Enhanced Filters**: 5 new dimensions (matchType, conditions, tournament, playerRole)
-- 🎲 **Maximum Randomization**: 100% unique search seeds, 94%+ context variety  
-- 📊 **Quality Scoring**: Advanced quality metrics for anecdotes and questions
-- 🚀 **Smart Model Selection**: Fast models prioritized, quality maintained
-
-**Options:**
-- `--era <era>`: Cricket era filter (default: all_eras)
-- `--countries <csv>`: Comma-separated countries (default: all_countries)
-- `--category <category>`: Question category (default: legendary_moments)
-- `--anecdotes <num>`: Number of anecdotes to generate (default: 10)
-- `--questions <num>`: Target number of questions (optional, auto-calculated)
-- `--search-model <model>`: Override search model (perplexitySonar, perplexitySonarPro, etc.)
-- `--creative-model <model>`: Override creative model (claude3Sonnet, claude3Opus, gpt4, etc.)
-- `--batch-size <num>`: Batch size for question generation (default: auto)
-- `--show-anecdotes`: Display generated anecdotes in output
-- `--json`: Output questions in JSON format
-- `--debug`: Enable debug output
-
-### ⚡ speed-test - V2 Performance Testing
-Test and compare V2 pipeline performance with different optimization settings.
+### 🔍 verify - Web Verification Testing
+**Test verification of cricket incidents using Google Custom Search**
 
 ```bash
-# Quick speed test with 3 runs
-npm run cli:speed --count 3 --anecdotes 5 --questions 8
+# Verify a specific incident
+npm run cli:verify -- -i "Sachin scored 100 centuries"
 
-# Compare serial vs parallel performance  
-npm run cli:speed --compare --count 5
-
-# Test with fastest model configuration
-npm run cli:speed --fast-models --count 3
-
-# Extended performance analysis
-npm run cli:speed --count 10 --anecdotes 8 --questions 12
-```
-
-**Features:**
-- 📊 **Performance Benchmarking**: Average, min, max timing analysis
-- 🆚 **Comparison Testing**: Serial vs parallel vs fast-model configurations
-- 📈 **Success Rate Monitoring**: Track pipeline reliability under speed optimization
-- 🏆 **Performance Grading**: Excellent (<30s), Good (<60s), Acceptable (<2min)
-
-**Options:**
-- `--count <num>`: Number of test runs (default: 3)
-- `--anecdotes <num>`: Anecdotes per test (default: 5)
-- `--questions <num>`: Target questions per test (default: 8)
-- `--parallel`: Test with parallel processing (default)
-- `--serial`: Test with serial processing
-- `--fast-models`: Use fastest model configuration
-- `--compare`: Compare serial vs parallel vs fast-model performance
-
-### 🔍 verify - Web Verification Command
-Test web verification of cricket incidents using Google Custom Search.
-
-```bash
-# Verify a specific cricket fact
-npm run cli verify --incident "Virat Kohli scored 183 runs against Pakistan in 2012 Asia Cup"
-
-# Show detailed source information  
-npm run cli verify --incident "MS Dhoni helicopter shot 2011 World Cup final" --show-sources
+# Generate and verify an incident
+npm run cli:verify -- -g
 
 # Set confidence threshold
-npm run cli verify --incident "Shane Warne 700th wicket" --confidence 80
+npm run cli:verify -- -i "Kapil Dev 1983 catch" -c 70
 ```
 
-**Features:**
-- 🎯 **Confidence Scoring**: 0-100% verification confidence with detailed analysis
-- 🌟 **Source Quality Ranking**: Identifies high-quality cricket sources
-- 📊 **Multi-Factor Analysis**: Credibility, relevance, and authority scoring
-- 🔗 **Source Attribution**: Direct links to supporting articles
-
-**Options:**
-- `--incident <text>`: Cricket incident text to verify (required)
-- `--show-sources`: Show detailed source information and scoring
-- `--confidence <threshold>`: Minimum confidence threshold (0-100, default: 60)
-- `--json`: Output results as JSON
-
-### 🔍 search - Google Custom Search Testing  
-Direct testing of Google Custom Search API with cricket queries.
+### 📊 performance - Performance Benchmarking
+**Detailed performance testing and analysis**
 
 ```bash
-# Test search with cricket query
-npm run cli search --query "cricket legends"
+# Test specific component
+npm run cli:perf -- --component openrouter
 
-# Search for specific events
-npm run cli search --query "2011 world cup final dhoni six"
+# Test full pipeline
+npm run cli:perf -- --component pipeline
 
-# Test search engine configuration
-npm run cli search --query "virat kohli centuries"
+# Multiple iterations
+npm run cli:perf -- -n 5 --warmup 2
 ```
 
-**Features:**
-- 🌐 **Direct API Testing**: Tests Google Custom Search integration
-- 📋 **Result Formatting**: Clean display of search results with relevance
-- 🔍 **Query Validation**: Ensures search engine is properly configured
-- 📊 **Response Analysis**: Shows result counts and response times
-
-**Options:**
-- `--query <text>`: Search query to test (required)
-- `--num <number>`: Number of results to return (default: 10)
-- `--start <number>`: Starting index for results (default: 1)
-
-### ⚡ performance - Performance Benchmarking
-Performance testing and benchmarking for pipeline optimization.
+### 🎓 learn-cricket - Interactive Cricket Learning
+**Adaptive difficulty cricket quiz in batch mode**
 
 ```bash
-# Test pipeline performance
-npm run cli performance --count 3 --target 3000
+# Start learning mode
+npm run cli:learn
 
-# Extended performance test  
-npm run cli performance --count 5 --target 2500
-
-# Test with different parameters
-npm run cli performance --count 2 --warmup 1
+# Compare fast vs regular implementation
+npm run cli:learn-fast
 ```
 
-**Features:**
-- ⏱️ **Response Time Monitoring**: Tracks generation speed and targets
-- 🎯 **Success Rate Analysis**: Monitors pipeline reliability
-- 📊 **Performance Metrics**: Detailed timing breakdown and memory usage
-- 🔥 **Warmup Support**: Ensures accurate performance measurements
+### 🔎 search - Google Custom Search Testing
+**Test Google Custom Search API directly**
 
-**Options:**
-- `--count <number>`: Number of test iterations (default: 5)
-- `--target <ms>`: Target time in milliseconds (default: 4000)  
-- `--warmup <number>`: Warmup iterations (default: 2)
-- `--concurrent <number>`: Concurrent requests (default: 1)
+```bash
+# Search for cricket content
+npm run cli:search -- -q "Sachin Tendulkar records" -n 5
 
-## 🎯 Performance Targets
+# Search with specific start index
+npm run cli:search -- -q "IPL 2024" -n 10 -s 11
+```
 
-### V1 Pipeline (search-generate)
-- **Target Time**: 3-4 seconds per question
-- **Success Rate**: >95% successful generations
-- **Verification Rate**: >70% verified incidents
-- **Consistency**: Low variance in timing
+## 🏗️ Architecture
 
-### V2 Pipeline (search-generate-v2) ⚡ OPTIMIZED
-- **Target Time**: 20-30 seconds total (down from 100+ seconds)
-- **Phase 1**: 10-15 seconds for 5-10 anecdotes (parallel batches)
-- **Phase 2**: 10-15 seconds for 8-12 questions (parallel processing)
+The CLI uses a modular architecture with:
+
+1. **Shared Services** (`shared/services/`)
+   - `OpenRouterService.js`: Multi-model AI integration
+   - `LearnCricketService.js`: Adaptive learning logic
+
+2. **Command Modules** (`cli/commands/`)
+   - Each command is a self-contained module
+   - Shared utilities in `cli/utils/`
+
+3. **Two-Phase Pipeline**:
+   - **Phase 1**: Web search for cricket content (Perplexity)
+   - **Phase 2**: Convert content to questions (Claude/GPT-4)
+
+## 📈 Performance Targets
+
+### Pipeline Performance
+- **Target Time**: 20-30 seconds total
+- **Phase 1**: 10-15 seconds for anecdotes
+- **Phase 2**: 10-15 seconds for questions
 - **Success Rate**: >90% successful generations
-- **Speed Improvement**: 3-5x faster than serial processing
 
-## 📊 Understanding Results
+## 🔧 Development
 
-### Confidence Scores
-- **80-100%**: High confidence, multiple reliable sources
-- **60-79%**: Good confidence, verified by search
-- **40-59%**: Moderate confidence, some supporting evidence
-- **0-39%**: Low confidence, insufficient verification
+### Adding a New Command
+1. Create new file in `cli/commands/`
+2. Export a Commander command
+3. Register in `cli/index.js`
 
-### Performance Grades
-- **Excellent**: <75% of target time
-- **Good**: Within target time
-- **Acceptable**: <150% of target time
-- **Poor**: >150% of target time
+### Testing
+```bash
+# Run all tests
+npm test
 
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-1. **Missing API Keys**
-   ```
-   ❌ Missing required environment variables
-   ```
-   - Check your `.env` file
-   - Ensure all three API keys are set
-
-2. **API Rate Limits**
-   ```
-   ❌ Generation failed: 429 Too Many Requests
-   ```
-   - Reduce concurrent testing
-   - Wait before retrying
-   - Check API quotas
-
-3. **Poor Verification Scores**
-   ```
-   🔍 Low verification rate
-   ```
-   - Use more specific incidents
-   - Focus on well-documented events
-   - Lower confidence threshold
-
-4. **Slow Performance**
-   ```
-   🐌 Performance above target
-   ```
-   - Check internet connection
-   - Reduce search result count
-   - Use simpler prompts
-
-## 📁 Project Structure
-
-```
-cli/
-├── index.js              # Main CLI entry point
-├── commands/
-│   ├── generate.js       # Generation testing
-│   ├── verify.js         # Verification testing  
-│   ├── pipeline.js       # End-to-end testing
-│   └── performance.js    # Performance benchmarking
-├── services/
-│   ├── enhanced-gemini.js    # AI incident generation
-│   └── google-search.js      # Web verification
-└── utils/
-    ├── config.js         # Configuration management
-    └── performance.js    # Performance monitoring
+# Test specific command
+npm run cli:perf -- --component openrouter --warmup 0 -n 1
 ```
 
-## 🧪 Example Workflow
+## 📝 Environment Variables
 
-1. **Test Enhanced Storytelling (RECOMMENDED)**
-   ```bash
-   node cli/index.js grounded --type question --era world_cup_era --country india
-   ```
+```env
+# Required
+EXPO_PUBLIC_OPENROUTER_API_KEY=your_openrouter_key
 
-2. **Test Web-Verified Incidents**
-   ```bash
-   node cli/index.js grounded --type incident --era modern_era --interactive
-   ```
+# Optional (for verification features)
+GOOGLE_CUSTOM_SEARCH_API_KEY=your_google_api_key
+GOOGLE_CUSTOM_SEARCH_CX=your_search_engine_id
+```
 
-3. **Performance Benchmarking**
-   ```bash
-   node cli/index.js performance --count 10 --component grounded
-   ```
+## 🐛 Troubleshooting
 
-4. **Legacy Pipeline Testing**
-   ```bash
-   node cli/index.js pipeline --count 3 --detailed --no-verify
-   ```
+### "No JSON structure found in response"
+- The AI model returned non-JSON format
+- The pipeline has fallback parsing strategies
 
-## ✅ Epic 1 Status: COMPLETED
+### Performance test shows failed
+- Check if questions were actually generated
+- Look for successful test results in debug output
 
-**Achievements:**
-- ✅ Real-time web verification with Gemini search grounding
-- ✅ Performance targets met (3-4 seconds per question)
-- ✅ Enhanced storytelling with rich narrative context
-- ✅ Complete CLI testing framework ready for production
-
-## 🎯 Next Steps
-
-Epic 1 foundation ready for:
-1. **Epic 2**: Context management and filter accuracy
-2. **Epic 3**: Performance optimization and reliability  
-3. **Epic 4**: Quality assurance and source attribution
-4. **Epic 5**: React Native app integration
+### API Rate Limits
+- OpenRouter has rate limits per model
+- Use `--fast-models` for higher limits
+- Implement delays between requests if needed

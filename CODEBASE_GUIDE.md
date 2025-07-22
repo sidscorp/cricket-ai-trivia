@@ -7,9 +7,9 @@ A comprehensive guide to understanding the cricket trivia application architectu
 This is a dual-platform project combining:
 - **React Native Mobile App**: Cross-platform cricket trivia game
 - **CLI Testing Framework**: Advanced AI question generation pipeline testing
-- **AI Services**: Multi-model AI integration for question generation
-  - **V1 Pipeline**: Google Custom Search → Gemini for direct question generation
-  - **V2 Pipeline**: OpenRouter (Perplexity Sonar → Claude/GPT-4) for two-phase generation
+- **AI Services**: Unified multi-model AI integration via OpenRouter
+  - **Main Pipeline**: Web search (Perplexity) → Anecdote generation → Question creation (Claude/GPT-4)
+  - **Direct Generation**: Single-step question generation using creative models
 
 ## 🗂️ Directory Structure
 
@@ -34,8 +34,7 @@ cricket-trivia/
 ├── 📚 Documentation
 │   ├── README.md                  # Main project documentation
 │   ├── CLI_README.md              # CLI usage guide
-│   ├── TESTING_GUIDE.md           # Testing procedures
-│   └── NEXT_SESSION_TASKS.md      # Development roadmap
+│   └── CODEBASE_GUIDE.md          # This file - architecture overview
 │
 └── ⚙️ Configuration
     ├── package.json               # Dependencies and scripts
@@ -124,8 +123,8 @@ The CLI system provides comprehensive testing for the AI question generation pip
 
 ### Services (`cli/services/`)
 
-#### **`GeminiService.js`** 🧠 Core AI Engine
-- **Purpose**: JavaScript implementation of Gemini AI integration
+#### **`OpenRouterService.js`** 🧠 Core AI Engine
+- **Purpose**: Multi-model AI integration via OpenRouter API
 - **Key Features**:
   - **Adaptive Configuration**: Dynamic temperature/topP based on difficulty/category
   - **Factual Question Framework**: Extracts concrete cricket facts vs. opinions
