@@ -6,10 +6,9 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { CLIGeminiService } from '../../shared/services/GeminiService.js';
+import { getOpenRouterService } from '../../shared/services/OpenRouterService.js';
 import { GoogleSearchService } from '../services/google-search.js';
 import { PerformanceMonitor } from '../utils/performance.js';
-import { URLResolver } from '../utils/url-resolver.js';
 
 export const performanceCommand = new Command('performance')
   .alias('perf')
@@ -18,7 +17,7 @@ export const performanceCommand = new Command('performance')
   .option('-t, --target <ms>', 'Target time in milliseconds', '4000')
   .option('-w, --warmup <number>', 'Warmup iterations', '2')
   .option('-c, --concurrent <number>', 'Concurrent requests (be careful!)', '1')
-  .option('--component <type>', 'Test specific component (gemini|search|pipeline|grounded)', 'pipeline')
+  .option('--component <type>', 'Test specific component (openrouter|search|pipeline|grounded)', 'pipeline')
   .option('--legacy', 'Use legacy pipeline for testing')
   .option('--grounded', 'Use grounded pipeline for testing (default)')
   .option('--json', 'Output results as JSON')
@@ -72,7 +71,7 @@ async function runPerformanceTest(options) {
   console.log(chalk.gray(`   Target: ${target}ms`));
   console.log(chalk.gray(`   Concurrency: ${concurrent}`));
 
-  const geminiService = new CLIGeminiService();
+  const openRouterService = getOpenRouterService();
   const searchService = new GoogleSearchService();
 
   // Warmup phase
@@ -80,7 +79,7 @@ async function runPerformanceTest(options) {
     console.log(chalk.yellow(`\n🔥 Warming up (${warmup} iterations)...`));
     for (let i = 0; i < warmup; i++) {
       try {
-        await runSingleTest(component, geminiService, searchService, useGrounded);
+        await runSingleTest(component, openRouterService, searchService, useGrounded);
         process.stdout.write(chalk.gray('.'));
       } catch (error) {
         process.stdout.write(chalk.red('x'));
@@ -96,7 +95,7 @@ async function runPerformanceTest(options) {
   if (concurrent === 1) {
     // Sequential testing
     for (let i = 0; i < count; i++) {
-      const result = await runSingleTest(component, geminiService, searchService, useGrounded);
+      const result = await runSingleTest(component, openRouterService, searchService, useGrounded);
       testResults.push(result);
       process.stdout.write(result.success ? chalk.green('.') : chalk.red('x'));
     }
@@ -106,7 +105,7 @@ async function runPerformanceTest(options) {
     for (let batch = 0; batch < batches; batch++) {
       const batchSize = Math.min(concurrent, count - batch * concurrent);
       const promises = Array(batchSize).fill().map(() => 
-        runSingleTest(component, geminiService, searchService, useGrounded)
+        runSingleTest(component, openRouterService, searchService, useGrounded)
       );
       
       const batchResults = await Promise.allSettled(promises);
@@ -130,35 +129,48 @@ async function runPerformanceTest(options) {
 /**
  * Run a single test iteration
  */
-async function runSingleTest(component, geminiService, searchService, useGrounded = false) {
+async function runSingleTest(component, openRouterService, searchService, useGrounded = false) {
   const startTime = process.hrtime.bigint();
   
   try {
-    if (component === 'gemini') {
-      if (useGrounded) {
-        await geminiService.generateVerifiedIncident();
-      } else {
-        await geminiService.generateIncident();
-      }
+    if (component === 'openrouter' || component === 'gemini') {
+      // Generate a test question using OpenRouter
+      await openRouterService.generateQuestions({
+        category: 'legendary_moments',
+        difficulty: 'medium',
+        count: 1,
+        model: openRouterService.models.creative.claude3Sonnet
+      });
     } else if (component === 'search') {
       await searchService.searchCricketIncident('Kapil Dev catch 1983 World Cup');
     } else if (component === 'grounded') {
-      const question = await geminiService.generateVerifiedQuestion();
-      if (question.grounding?.groundingChunks) {
-        await URLResolver.resolveAllGroundingURLs(question.grounding.groundingChunks);
-      }
+      // OpenRouter doesn't have grounded search, use Perplexity model instead
+      const questions = await openRouterService.generateQuestions({
+        category: 'legendary_moments',
+        difficulty: 'medium',
+        count: 1,
+        model: openRouterService.models.search.perplexitySonar // Search-capable model
+      });
     } else if (component === 'pipeline') {
       if (useGrounded) {
-        // Grounded pipeline: Direct question generation with URL resolution
-        const question = await geminiService.generateVerifiedQuestion();
-        if (question.grounding?.groundingChunks) {
-          await URLResolver.resolveAllGroundingURLs(question.grounding.groundingChunks);
-        }
+        // Use Perplexity for web-aware question generation
+        const questions = await openRouterService.generateQuestions({
+          category: 'legendary_moments',
+          difficulty: 'medium',
+          count: 1,
+          model: openRouterService.models.search.perplexitySonar
+        });
       } else {
-        // Legacy pipeline: Incident -> Verification -> Question
-        const incident = await geminiService.generateIncident();
-        const verification = await searchService.searchCricketIncident(incident.incident);
-        await geminiService.generateVerifiableQuestion({ incident });
+        // Legacy pipeline: Generate question -> Search for verification
+        const questions = await openRouterService.generateQuestions({
+          category: 'legendary_moments',
+          difficulty: 'medium',
+          count: 1,
+          model: openRouterService.models.creative.claude3Sonnet
+        });
+        if (questions.length > 0) {
+          const verification = await searchService.searchCricketIncident(questions[0].question);
+        }
       }
     }
     

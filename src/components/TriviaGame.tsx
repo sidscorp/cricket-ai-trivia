@@ -16,7 +16,7 @@ import {
   Alert,
 } from 'react-native';
 import { TriviaQuestion, QuestionCategory, DifficultyLevel, GameFilters } from '../types/Question';
-import { getGeminiService } from '../../shared/services/GeminiService';
+import { getOpenRouterService } from '../../shared/services/OpenRouterService';
 import { QuestionValidator } from '../utils/QuestionValidator';
 
 interface TriviaGameProps {
@@ -52,37 +52,41 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit, filters })
       setLoading(true);
       setError(null);
       
-      const geminiService = getGeminiService();
+      const openRouterService = getOpenRouterService();
       let allQuestions: TriviaQuestion[] = [];
       
       if (mode === 'tutorial') {
-        // Generate tutorial questions
-        const tutorialQuestions = await geminiService.generateQuestions({
+        // Generate tutorial questions using OpenRouter
+        const tutorialQuestions = await openRouterService.generateQuestions({
           category: 'tutorial',
           difficulty: 'easy',
           count: 10,
+          model: openRouterService.models.fast.gpt35Turbo, // Use fast model for tutorial
         });
         allQuestions = tutorialQuestions;
       } else {
-        // Generate a mix of questions for game mode
+        // Generate a mix of questions for game mode using different models
         const questionPromises = [
-          geminiService.generateQuestions({
+          openRouterService.generateQuestions({
             category: 'legendary_moments',
             difficulty: 'medium',
             count: 2,
             filters: filters,
+            model: openRouterService.models.creative.claude3Sonnet, // High quality for stories
           }),
-          geminiService.generateQuestions({
+          openRouterService.generateQuestions({
             category: 'player_stories',
             difficulty: 'medium',
             count: 2,
             filters: filters,
+            model: openRouterService.models.creative.claude3Sonnet,
           }),
-          geminiService.generateQuestions({
+          openRouterService.generateQuestions({
             category: 'records_stats',
             difficulty: 'easy',
             count: 1,
             filters: filters,
+            model: openRouterService.models.fast.gpt35Turbo, // Fast model for stats
           }),
         ];
 
@@ -151,12 +155,19 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ mode, onExit, filters })
     // In game mode, generate more questions as needed
     if (mode === 'game' && currentQuestionIndex >= questions.length - 2) {
       try {
-        const geminiService = getGeminiService();
-        const newQuestions = await geminiService.generateQuestions({
-          category: getRandomCategory(),
+        const openRouterService = getOpenRouterService();
+        const category = getRandomCategory();
+        // Use appropriate model based on category
+        const model = category === 'records_stats' 
+          ? openRouterService.models.fast.gpt35Turbo
+          : openRouterService.models.creative.claude3Sonnet;
+        
+        const newQuestions = await openRouterService.generateQuestions({
+          category: category,
           difficulty: getRandomDifficulty(),
           count: 2,
           filters: filters,
+          model: model,
         });
         
         const validNewQuestions = newQuestions

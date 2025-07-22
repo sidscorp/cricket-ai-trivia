@@ -8,7 +8,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { GoogleSearchService } from '../services/google-search.js';
-import { CLIGeminiService } from '../../shared/services/GeminiService.js';
+import { getOpenRouterService } from '../../shared/services/OpenRouterService.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 
 export const verifyCommand = new Command('verify')
@@ -29,10 +29,27 @@ export const verifyCommand = new Command('verify')
       let incident;
 
       if (options.generate) {
-        // Generate an incident first
-        const geminiService = new CLIGeminiService();
+        // Generate an incident first using OpenRouter
+        const openRouterService = getOpenRouterService();
         console.log(chalk.cyan('\n📝 Generating incident for verification...'));
-        incident = await geminiService.generateIncident();
+        
+        // Use OpenRouter to generate a cricket incident
+        const prompt = `Generate a specific, verifiable cricket incident that actually happened. 
+Return it in this JSON format:
+{
+  "incident": "Detailed description of the cricket incident",
+  "summary": "Brief summary (max 100 chars)"
+}`;
+        
+        const response = await openRouterService.callOpenRouterAPI({
+          model: openRouterService.models.creative.claude3Sonnet,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 500
+        });
+        
+        const content = response.choices[0].message.content;
+        incident = openRouterService.extractJSONFromContent(content);
         console.log(chalk.gray(`Generated: "${incident.summary}"`));
       } else if (options.incident) {
         // Use provided incident

@@ -86,6 +86,85 @@ class OpenRouterService {
   }
 
   /**
+   * Generate cricket trivia questions directly (similar to Gemini service)
+   */
+  async generateQuestions(request) {
+    try {
+      const { category, difficulty, count = 5, filters, model } = request;
+      
+      // Build prompt for direct question generation
+      const prompt = this.buildDirectQuestionPrompt(request);
+      const selectedModel = model || this.defaultCreativeModel;
+      
+      this.log('blue', `🎯 Using ${selectedModel} for direct question generation...`);
+      
+      const response = await this.callOpenRouterAPI({
+        model: selectedModel,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.8,
+        max_tokens: 2000
+      });
+      
+      const content = response.choices[0].message.content;
+      const questions = this.parseQuestionResponse(content);
+      
+      // Filter to requested count
+      return questions.slice(0, count);
+      
+    } catch (error) {
+      this.log('red', 'Error generating questions:', error.message);
+      throw new Error(`Failed to generate questions: ${error.message}`);
+    }
+  }
+
+  /**
+   * Build prompt for direct question generation
+   */
+  buildDirectQuestionPrompt(request) {
+    const { category, difficulty, count = 5, filters } = request;
+    
+    let prompt = `Generate ${count} high-quality cricket trivia questions.\n\n`;
+    
+    if (category && category !== 'tutorial') {
+      prompt += `Category: ${category.replace(/_/g, ' ')}\n`;
+    }
+    
+    if (difficulty) {
+      prompt += `Difficulty: ${difficulty}\n`;
+    }
+    
+    if (filters) {
+      if (filters.era && filters.era !== 'all_eras') {
+        prompt += `Era: ${filters.era.replace(/_/g, ' ')}\n`;
+      }
+      if (filters.countries && filters.countries.length > 0 && !filters.countries.includes('all_countries')) {
+        prompt += `Countries: ${filters.countries.join(', ')}\n`;
+      }
+    }
+    
+    prompt += `
+Instructions:
+1. Generate engaging cricket trivia questions that are factually accurate
+2. Each question should have 4 options with only 1 correct answer
+3. Include interesting explanations that provide context
+4. ${category === 'tutorial' ? 'Focus on basic cricket concepts suitable for beginners' : 'Include fascinating cricket stories and facts'}
+
+Return a JSON array with this structure:
+[
+  {
+    "question": "The question text",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctAnswer": 0,
+    "explanation": "Detailed explanation with interesting context",
+    "category": "${category || 'general'}",
+    "difficulty": "${difficulty || 'medium'}"
+  }
+]`;
+    
+    return prompt;
+  }
+
+  /**
    * Generate cricket anecdotes using search-capable model
    */
   async generateAnecdotes(request) {

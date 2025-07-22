@@ -22,7 +22,7 @@ The challenge is that this pipeline can be slow, and there's a constant trade-of
 
 ### What's Working
 - **Basic Pipeline**: Web search → anecdote generation → question creation flow
-- **Multiple AI Models**: Testing with Gemini, GPT-3.5, Claude via OpenRouter
+- **Unified AI Access**: All models (GPT-4, Claude, Perplexity) via OpenRouter
 - **Learn Cricket Mode**: Interactive quiz format with cricket-style scoring
 - **Mobile UI**: React Native app (with some sequencing bugs to fix)
 
@@ -46,7 +46,8 @@ What fascinates me is that there are countless ways to combine these AI models t
 
 ### Prerequisites
 - Node.js 18+ and npm
-- API keys for Gemini, Google Search, and OpenRouter
+- OpenRouter API key for AI models
+- Google Custom Search API keys (optional, for verification)
 
 ### Quick Start
 ```bash
@@ -69,10 +70,9 @@ npm start
 
 ### Environment Variables
 ```
-EXPO_PUBLIC_GEMINI_API_KEY=your_key
-GOOGLE_CUSTOM_SEARCH_API_KEY=your_key
-GOOGLE_CUSTOM_SEARCH_CX=your_engine_id
 EXPO_PUBLIC_OPENROUTER_API_KEY=your_key
+GOOGLE_CUSTOM_SEARCH_API_KEY=your_key (optional)
+GOOGLE_CUSTOM_SEARCH_CX=your_engine_id (optional)
 ```
 
 ## Architecture Notes
